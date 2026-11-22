@@ -1,12 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
 import { MUSHROOM_COST, WIN_COVERAGE } from '../game/constants';
 import {
-  buyUpgrade, finishRound, modsFor, newProfile, totalXp, xpToNext, type Profile, type UpgradeId, type XpLine,
+  buyUpgrade, finishRound, modsFor, totalXp, xpToNext, type Profile, type UpgradeId, type XpLine,
 } from '../game/progress';
 import { coverage, sporesPerSecond, step } from '../game/sim';
 import { createLevel1, type Game, type Mods, type RoundStats } from '../game/world';
 import { GameView, type Tool } from '../render/GameView';
+import {
+  browserStore, clearAutosave, clearSlot, loadRound, makeBackup, readAutosave, readProfile, readSlot, restoreBackup,
+  saveRound, SLOT_COUNT, writeAutosave, writeProfile, writeSlot, type SavedRound, type SlotSave,
+} from '../game/save';
+import { thumbnail } from '../render/thumbnail';
 import { MainMenu } from './MainMenu';
+import { SaveDialog } from './SaveDialog';
 import { formatTime, SpreadChart } from './SpreadChart';
 
 // What the panel shows, copied out of the game a few times a second (the game itself changes
@@ -53,12 +59,16 @@ const HELP: [string, string][] = [
   ['B', 'Burst the ready mushroom nearest the mouse'],
   ['Space or P', 'Pause and resume'],
   ['R', 'Restart (press twice during a round)'],
+  ['S', 'Save the round to a slot'],
   ['F', 'Fullscreen'],
   ['H or ?', 'This help'],
   ['Esc', 'Close the help, or resume'],
 ];
 
 const RESTART_WINDOW = 2000; // ms to press R a second time
+const AUTOSAVE_EVERY = 5000; // ms
+const store = browserStore;
+const readSlots = () => Array.from({ length: SLOT_COUNT }, (_, k) => readSlot(store, k + 1));
 
 const newGame = (mods?: Mods) => createLevel1(Math.floor(Math.random() * 1e9), mods);
 
@@ -86,7 +96,10 @@ export function App() {
   const [fullscreen, setFullscreen] = useState(false);
   const restartArmed = useRef(0); // when R was pressed once during a round
   const [screen, setScreen] = useState<'menu' | 'game'>('menu');
-  const [profile, setProfile] = useState<Profile>(newProfile);
+  const [profile, setProfile] = useState<Profile>(() => readProfile(store));
+  const [autosave, setAutosave] = useState<SavedRound | null>(() => readAutosave(store));
+  const [slots, setSlots] = useState<(SlotSave | null)[]>(readSlots);
+  const [saving, setSaving] = useState(false); // the save dialog is open
   const [summary, setSummary] = useState<Summary | null>(null);
   const awarded = useRef<Game | null>(null); // the round XP was last given for
 
@@ -135,8 +148,35 @@ export function App() {
   useEffect(() => {
     if (!view.current) return;
     view.current.tool = tool;
-    view.current.frozen = paused || help || screen === 'menu';
-  }, [tool, paused, help, screen, snap]);
+    view.current.frozen = paused || help || saving || screen === 'menu';
+  }, [tool, paused, help, saving, screen, snap]);
+
+  // The profile is kept for good, whenever it changes.
+  useEffect(() => {
+    writeProfile(store, profile);
+  }, [profile]);
+
+  // The round in progress is saved every few seconds and when the page is closed; a finished
+  // round's autosave is cleared.
+  const screenRef = useRef(screen);
+  screenRef.current = screen;
+  useEffect(() => {
+    const save = () => {
+      if (screenRef.current === 'game' && game.current.status === 'playing') writeAutosave(store, game.current);
+    };
+    const timer = setInterval(save, AUTOSAVE_EVERY);
+    window.addEventListener('pagehide', save);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('pagehide', save);
+    };
+  }, []);
+  useEffect(() => {
+    if (snap.status !== 'playing' && screen === 'game') {
+      clearAutosave(store);
+      setAutosave(null);
+    }
+  }, [snap.status, screen]);
 
   // When a round ends, it earns XP (once).
   useEffect(() => {
@@ -183,15 +223,66 @@ export function App() {
     return () => clearTimeout(timer);
   }, [message]);
 
-  const restart = () => {
-    game.current = newGame(modsFor(profile));
+  // Start playing a round: a new one, or one loaded from a save (which starts paused, so the
+  // player can look before it moves).
+  const startRound = (g: Game, pause: boolean) => {
+    game.current = g;
     setSummary(null);
     setScreen('game');
-    view.current?.setGame(game.current);
-    setSnap(snapshot(game.current));
-    setPaused(false);
+    view.current?.setGame(g);
+    setSnap(snapshot(g));
+    setPaused(pause);
     setHelp(false);
+    setSaving(false);
     restartArmed.current = 0;
+  };
+  const restart = () => startRound(newGame(modsFor(profile)), false);
+  const loadSaved = (round: SavedRound) => {
+    const g = loadRound(round);
+    if (g) startRound(g, true);
+    else say('That save could not be read');
+  };
+
+  // Back to the menu in the middle of a round: it is autosaved, to continue later.
+  const leaveRound = () => {
+    if (game.current.status === 'playing') {
+      writeAutosave(store, game.current);
+      setAutosave(saveRound(game.current));
+    }
+    toMenu();
+  };
+
+  const saveToSlot = (n: number, name: string) => {
+    const g = game.current;
+    const ok = writeSlot(store, n, {
+      name, savedAt: Date.now(), held: coverage(g), time: g.time, picture: thumbnail(g), round: saveRound(g),
+    });
+    setSlots(readSlots());
+    setSaving(false);
+    say(ok ? `Saved in slot ${n}` : 'The browser would not store the save');
+  };
+  const deleteSlot = (n: number) => {
+    clearSlot(store, n);
+    setSlots(readSlots());
+  };
+
+  const downloadBackup = () => {
+    const blob = new Blob([JSON.stringify(makeBackup(store))], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `mycelium-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  };
+  // Returns a reason if the file isn't a backup; otherwise everything is replaced by it.
+  const loadBackup = (text: string) => {
+    const problem = restoreBackup(store, text);
+    if (problem) return problem;
+    setProfile(readProfile(store));
+    setAutosave(readAutosave(store));
+    setSlots(readSlots());
+    say('Backup loaded');
+    return null;
   };
 
   const togglePause = () => {
@@ -215,6 +306,7 @@ export function App() {
     setScreen('menu');
     setPaused(false);
     setHelp(false);
+    setSaving(false);
   };
   const buy = (id: UpgradeId) => setProfile((p) => buyUpgrade(p, id) ?? p);
 
@@ -232,8 +324,11 @@ export function App() {
       if (key === ' ' || key === 'p') {
         e.preventDefault(); // Space would also press the focused button
         if (!e.repeat) togglePause();
+      } else if (key === 's' && !e.repeat) {
+        if (game.current.status === 'playing') setSaving((v) => !v);
       } else if (key === 'escape') {
-        if (help) setHelp(false);
+        if (saving) setSaving(false);
+        else if (help) setHelp(false);
         else if (paused) setPaused(false);
       } else if (key === 'h' || key === '?') {
         if (!e.repeat) setHelp((h) => !h);
@@ -251,7 +346,7 @@ export function App() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [help, paused, screen, profile]);
+  }, [help, paused, saving, screen, profile]);
 
   const goal = Math.min(1, snap.held / WIN_COVERAGE);
   const won = snap.status === 'won';
@@ -296,6 +391,13 @@ export function App() {
             aria-label={paused ? 'Resume' : 'Pause'} disabled={snap.status !== 'playing'}>
             {paused ? <PlayIcon /> : <PauseIcon />}
           </button>
+          <button className="icon" onClick={() => setSaving(true)} title="Save to a slot (S)" aria-label="Save"
+            disabled={snap.status !== 'playing'}>
+            <SaveIcon />
+          </button>
+          <button className="icon" onClick={leaveRound} title="Main menu (the round is kept)" aria-label="Main menu">
+            <MenuIcon />
+          </button>
           <button className="icon" onClick={() => setHelp((h) => !h)} title="Help (H)" aria-label="Help">?</button>
           <button className="icon" onClick={toggleFullscreen} title={fullscreen ? 'Leave fullscreen (F)' : 'Fullscreen (F)'}
             aria-label={fullscreen ? 'Leave fullscreen' : 'Fullscreen'}>
@@ -306,9 +408,20 @@ export function App() {
       {screen === 'game' && <p className="hint">Drag to grow mycelium · click a mushroom to burst it · H for help</p>}
       {message && <div className="toast" key={message.id}>{message.text}</div>}
 
-      {screen === 'menu' && <MainMenu profile={profile} onPlay={restart} onBuy={buy} />}
+      {screen === 'menu' && (
+        <MainMenu
+          profile={profile} onPlay={restart} onBuy={buy}
+          autosave={autosave} onContinue={() => autosave && loadSaved(autosave)}
+          slots={slots} onLoadSlot={(n) => slots[n - 1] && loadSaved(slots[n - 1]!.round)} onDeleteSlot={deleteSlot}
+          onBackup={downloadBackup} onRestore={loadBackup}
+        />
+      )}
 
-      {paused && !help && snap.status === 'playing' && screen === 'game' && (
+      {saving && screen === 'game' && (
+        <SaveDialog slots={slots} game={game.current} onSave={saveToSlot} onClose={() => setSaving(false)} />
+      )}
+
+      {paused && !help && !saving && snap.status === 'playing' && screen === 'game' && (
         <div className="overlay" onClick={() => setPaused(false)}>
           <div className="paused">
             <h1>Paused</h1>
@@ -383,6 +496,14 @@ function XpSummary({ summary }: { summary: Summary }) {
       )}
     </section>
   );
+}
+
+function SaveIcon() {
+  return <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 2h8l3 3v8a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z" fill="none" strokeWidth="1.5" /><rect x="5" y="9" width="6" height="4" rx="0.5" /><rect x="5" y="2.5" width="5" height="3" rx="0.5" /></svg>;
+}
+
+function MenuIcon() {
+  return <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 4h10M3 8h10M3 12h10" fill="none" strokeWidth="1.8" strokeLinecap="round" /></svg>;
 }
 
 function PauseIcon() {

@@ -172,3 +172,43 @@ kbd { font: inherit; font-size: 11px; opacity: 0.7; }
   .menu-grid { grid-template-columns: 1fr; }
   .upgrade-grid { grid-template-columns: 1fr 1fr; }
 }
+
+/* --- Saving --- */
+.menu-card { width: min(1080px, 100%); }
+.menu-grid { grid-template-columns: 1fr 1.15fr 1.15fr; }
+.saves { background: rgba(255, 255, 255, 0.04); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 8px; }
+.saves-note { color: var(--muted); font-size: 11px; }
+.slot { display: grid; grid-template-columns: 72px 1fr; grid-template-rows: auto auto; gap: 4px 10px; align-items: center;
+  padding: 8px; border: 1px solid var(--line); border-radius: 10px; text-align: left; }
+.slot img, .slot-blank { grid-row: span 2; width: 72px; height: 48px; border-radius: 6px; image-rendering: pixelated; }
+.slot-blank { display: grid; place-items: center; background: rgba(255, 255, 255, 0.04); color: var(--muted); font-size: 18px; }
+.slot.empty strong { color: var(--muted); }
+.slot-text { display: flex; flex-direction: column; min-width: 0; }
+.slot-text strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
+.slot-text small { color: var(--muted); font-size: 11px; white-space: normal; }
+.slot-buttons { display: flex; gap: 6px; flex-wrap: wrap; }
+.slot-buttons button, .backup-buttons button { padding: 4px 10px; font-size: 12px; }
+.level-row.continue { border: 1px solid rgba(255, 79, 216, 0.5); border-radius: 8px; padding: 8px 10px; margin-bottom: 6px; }
+.backup { margin-top: auto; display: flex; flex-direction: column; gap: 6px; }
+.backup-buttons { display: flex; gap: 6px; flex-wrap: wrap; }
+.backup-confirm small, .problem { font-size: 12px; color: var(--muted); }
+.problem { color: #ff8a8a; }
+.menu button.warn, .card button.warn { background: #b3364f; border-color: #b3364f; color: #fff; }
+.menu button.secondary { background: transparent; }
+
+.save-dialog { display: flex; flex-direction: column; gap: 8px; max-width: 460px; width: 100%; }
+.save-dialog .card, .save-dialog h1 { margin-bottom: 4px; }
+.save-dialog button { margin: 0; align-items: center; }
+.save-dialog .slot button { padding: 5px 12px; font-size: 13px; }
+.name-field { display: flex; flex-direction: column; gap: 4px; text-align: left; font-size: 12px; color: var(--muted); }
+.name-field input { font: inherit; font-size: 15px; color: var(--ink); background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; }
+@media (max-width: 900px) {
+  .menu-grid { grid-template-columns: 1fr 1fr; }
+  .saves { grid-column: span 2; }
+}
+@media (max-width: 720px) {
+  .menu-grid { grid-template-columns: 1fr; }
+  .saves { grid-column: auto; }
+}

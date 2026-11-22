@@ -99,6 +99,7 @@ export interface Game {
   nextId: number;
   version: number; // goes up whenever tiles or the network change, so the ground is redrawn
   rng: Rng;
+  seed: number; // the level is made again from this when a saved round is loaded
 }
 
 export const idx = (g: Game, x: number, y: number) => y * g.w + x;
@@ -170,6 +171,7 @@ export function createLevel1(seed = 1, mods: Mods = DEFAULT_MODS): Game {
     nextId: 1,
     version: 0,
     rng,
+    seed,
   };
   // The mother mushroom and a small patch of mycelium around her.
   for (const [dx, dy] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) {

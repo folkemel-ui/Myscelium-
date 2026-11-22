@@ -29,6 +29,12 @@ Things learned while building Mycelium that are worth knowing before the next ch
 - `src/game/progress.ts` holds XP, levels and upgrades. Upgrades reach a round only through its
   `Mods` (`createLevel1(seed, modsFor(profile))`); the rules read `g.mods`, never the upgrade list.
   With no upgrades the Mods equal the constants, so the balance playthrough is unchanged.
+- `src/game/save.ts` turns rounds into plain data and back (`saveRound` / `loadRound`), reads and
+  writes the profile, autosave, slots and backups through a `Store` (the browser's localStorage,
+  every use guarded; tests use a memory store). Keys start with `mycelium.`. A saved round keeps
+  the seed and remakes the level, so anything new added to `Game` that changes during a round
+  must be added to `SavedRound` too, or it is lost on load: the "carries on exactly" test in
+  `save.test.ts` will catch most such slips.
 - `src/ui/App.tsx` is the React panel. It copies a snapshot of the game about 10 times a second;
   React never re-renders every frame.
 - In development the game is on `window.game` and the view on `window.view`. `view.inspect = { x, y, scale }`
@@ -75,5 +81,12 @@ Things learned while building Mycelium that are worth knowing before the next ch
   old one. Reload the page before testing after an edit.
 - A general rule like `.card p { color }` beats a single class like `.level-up { color }`; give
   special text inside cards a selector that names the card too (`.card .level-up`).
+- Rewriting a file with `cat > file` empties it for a moment; the Vite dev server once read it
+  in that moment and kept serving an empty module (blank page, "does not provide an export").
+  Re-saving the file fixed it. Write files in one go (the Write tool, or a script).
+- Inline `node - <<EOF` scripts with backticks and `$` in them can break the shell's quoting;
+  put longer patch scripts in a file in the scratchpad and run that.
+- Testing saves in the browser writes to the page's localStorage: note what is there first and
+  put it back (or clear the `mycelium.` keys) afterwards, so the player's own progress is kept.
 - Enemies need a way to leave. Before beetles got full and walked off, they piled up to 195 on
   one map.

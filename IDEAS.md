@@ -54,12 +54,12 @@ item gets `[x]` plus a short note in italics saying what was actually done.
 - [x] **Main menu** – Shows a level picker and the player's profile (level, XP towards the next level, upgrade points). *(The game opens on it, with the forest still behind. Profile: level badge, XP bar, rounds, wins and best time. Forests: The Little Wood to play, and Pine Hollow, The Swamp and City Park shown locked. Enter plays.)*
 - [x] **Levels and upgrade points** – Each level-up gives one point to spend on permanent upgrades that last across the whole game. *(Levels need 150, 250, 350… XP, so about one a round at first. Six upgrades, 1 point a rank: Thrifty threads (growing costs 1 spore less, 2 ranks), Rich caps (+20% spores from mushrooms), Mighty bursts (+1 damage and +0.3 tiles reach), Eager growth (creep +25%), Tough threads (beetles eat 25% slower), Head start (+15 spores at the start), 3 ranks each. Not saved yet: a reload starts a new profile until Pack 7.)*
 
-### Pack 7 – Saving
+### Pack 7 – Saving ✓
 
-- [ ] **Saving the profile** – Level, XP, upgrade points and upgrades are saved in the browser for good, separately from rounds.
-- [ ] **Autosave** – The round in progress is saved every few seconds and when the tab closes, and comes back exactly as it was left.
-- [ ] **Save slots** – Three named slots to save to and load from, each with a small picture of the forest, how much was held and the time played.
-- [ ] **Export / import** – Download a save as a file and load it back, as a backup or to move to another computer.
+- [x] **Saving the profile** – Level, XP, upgrade points and upgrades are saved in the browser for good, separately from rounds. *(Saved whenever it changes. Anything missing or broken in storage falls back to a fresh value, and upgrade ranks are kept within their limits. If the browser won't store anything (a private window), the game still plays.)*
+- [x] **Autosave** – The round in progress is saved every few seconds and when the tab closes, and comes back exactly as it was left. *(Every 5 seconds, when the page is closed, and when you go to the menu with the new menu button mid-round. The menu then offers "Continue your round" with its time and share held; it starts paused. A saved round keeps the level's seed and the random numbers' state, so it carries on exactly as it would have (tested over 30 seconds with beetles). A finished round's autosave is cleared. About 10 KB.)*
+- [x] **Save slots** – Three named slots to save to and load from, each with a small picture of the forest, how much was held and the time played. *(S or the save button opens the save dialog: a name (up to 40 letters, suggested from the forest and share held) and the three slots; writing over a slot asks first. The menu lists the slots with a 96×64 picture (2 pixels a tile, the network in its glow colours), share held, time and when saved, with Load and Delete (which asks first).)*
+- [x] **Export / import** – Download a save as a file and load it back, as a backup or to move to another computer. *("Back up to a file" in the menu downloads everything – profile, the unfinished round and the three slots – as one file (about 12 KB). "Load a backup" asks before replacing anything, and refuses a file that isn't a Mycelium backup or is from another version.)*
 
 ### Pack 8 – The trip
 
