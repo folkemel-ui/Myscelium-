@@ -11,6 +11,7 @@ import {
   saveRound, SLOT_COUNT, writeAutosave, writeProfile, writeSlot, type SavedRound, type SlotSave,
 } from '../game/save';
 import { thumbnail } from '../render/thumbnail';
+import { STAGES } from '../render/trip';
 import { MainMenu } from './MainMenu';
 import { SaveDialog } from './SaveDialog';
 import { formatTime, SpreadChart } from './SpreadChart';
@@ -100,6 +101,7 @@ export function App() {
   const [autosave, setAutosave] = useState<SavedRound | null>(() => readAutosave(store));
   const [slots, setSlots] = useState<(SlotSave | null)[]>(readSlots);
   const [saving, setSaving] = useState(false); // the save dialog is open
+  const [stageBanner, setStageBanner] = useState<{ stage: number; id: number } | null>(null);
   const [summary, setSummary] = useState<Summary | null>(null);
   const awarded = useRef<Game | null>(null); // the round XP was last given for
 
@@ -129,7 +131,8 @@ export function App() {
       return { x: r.left - b.left + r.width / 2, y: r.top - b.top + r.height / 2 };
     };
     const onSparkle = () => setBump((n) => n + 1);
-    GameView.create(host.current!, game.current, { onMessage: say, nutrientCounter, onSparkle }, onTick).then((v) => {
+    const onStage = (stage: number) => setStageBanner({ stage, id: Date.now() });
+    GameView.create(host.current!, game.current, { onMessage: say, nutrientCounter, onSparkle, onStage }, onTick).then((v) => {
       if (disposed) v.destroy();
       else {
         view.current = v;
@@ -216,6 +219,12 @@ export function App() {
     document.addEventListener('fullscreenchange', onChange);
     return () => document.removeEventListener('fullscreenchange', onChange);
   }, []);
+
+  useEffect(() => {
+    if (!stageBanner) return;
+    const timer = setTimeout(() => setStageBanner(null), 3200);
+    return () => clearTimeout(timer);
+  }, [stageBanner]);
 
   useEffect(() => {
     if (!message) return;
@@ -407,6 +416,13 @@ export function App() {
       </header>
       {screen === 'game' && <p className="hint">Drag to grow mycelium · click a mushroom to burst it · H for help</p>}
       {message && <div className="toast" key={message.id}>{message.text}</div>}
+      {stageBanner && screen === 'game' && snap.status === 'playing' && (
+        <div className="stage-banner" key={stageBanner.id} role="status">
+          <small>Stage {stageBanner.stage}</small>
+          <strong>{STAGES[stageBanner.stage - 1].name}</strong>
+          <span>{STAGES[stageBanner.stage - 1].adds}</span>
+        </div>
+      )}
 
       {screen === 'menu' && (
         <MainMenu

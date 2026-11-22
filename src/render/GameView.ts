@@ -8,6 +8,7 @@ import { idx, inside, TILE, type Game } from '../game/world';
 import { CreatureView } from './CreatureView';
 import { paintFloor, paintLightSpot } from './floor';
 import { NetworkView } from './NetworkView';
+import { TripView } from './TripView';
 import {
   CANOPY_GREENS, crownLayout, hash, lightAt, lightSpots, logLook, sway, TS, type Crown, type LightSpot,
 } from './forestLayout';
@@ -42,6 +43,7 @@ export interface ViewEvents {
   // Where the nutrient counter is, in the canvas's pixels, for sparkles to fly to.
   nutrientCounter: () => { x: number; y: number } | null;
   onSparkle: () => void; // a nutrient sparkle reached the counter
+  onStage?: (stage: number) => void; // a new stage of the trip was reached
 }
 
 export class GameView {
@@ -60,6 +62,7 @@ export class GameView {
   private lights: { spot: LightSpot; sprite: Sprite }[] = [];
   private lightTexture = Texture.EMPTY;
   readonly network = new NetworkView();
+  readonly trip = new TripView();
   readonly creatures = new CreatureView();
   private hover = new Graphics();
   private colour = new ColorMatrixFilter();
@@ -84,7 +87,8 @@ export class GameView {
     await view.app.init({ resizeTo: host, background: 0x15110d, antialias: true });
     host.appendChild(view.app.canvas);
     view.world.addChild(
-      view.floor, view.logs, view.network.glowLayer, view.network.threadLayer, view.canopy, view.light, view.lightMask,
+      view.floor, view.trip.ground, view.logs, view.network.glowLayer, view.network.threadLayer, view.canopy,
+      view.trip.rims, view.light, view.lightMask, view.trip.air, view.trip.airMask,
       view.creatures.under, view.creatures.mushroomLayer, view.creatures.spores, view.creatures.beetleLayer, view.hover,
     );
     view.light.mask = view.lightMask;
@@ -128,6 +132,7 @@ export class GameView {
       this.canopy.addChild(shape);
       return { crown, shape };
     });
+    this.trip.build(g, this.crowns.map((c) => c.crown), coverage(g) / WIN_COVERAGE);
 
     this.logTiles = [...g.logNutrients.keys()].filter((i) => g.logNutrients[i] > 0);
     this.logKey = '';
@@ -244,7 +249,11 @@ export class GameView {
     const g = this.game;
     this.fit();
     const share = coverage(g) / WIN_COVERAGE;
+    const trip = this.trip.update(g, this.clock, dt, share);
     this.colour.saturate(saturationFor(share), false);
+    this.colour.hue(trip.hue, true);
+    if (trip.flash > 0) this.colour.brightness(1 + 0.22 * trip.flash, true);
+    if (trip.newStage !== null) this.events.onStage?.(trip.newStage);
     this.network.update(g, this.clock, dt, share);
     this.drawLogs();
     for (const { crown, shape } of this.crowns) {

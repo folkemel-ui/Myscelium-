@@ -6,6 +6,7 @@
 // cheap: spores are sprites of one small texture, and a beetle's shell is drawn once; only its
 // legs, jaws and antennae are redrawn each frame.
 import { Container, Graphics, Sprite, Texture } from 'pixi.js';
+import { DOT_SIZE, dotTexture } from './textures';
 import { BEETLE_HP, BURST_COOLDOWN } from '../game/constants';
 import type { Game, Mushroom, Puff } from '../game/world';
 import {
@@ -17,7 +18,6 @@ import { GLOW, glowAt, hash, TS } from './forestLayout';
 const SMALL_SPORES = [0xd8ff7a, 0xeaffb0, 0xb6ff4f];
 const SPARKLES = [0xffe066, 0xd8ff6a, 0xfff3b0];
 const MAX_PARTICLES = 900;
-const SPORE_TEXTURE_SIZE = 32; // pixels across; a spore of radius r is drawn r * 2 across
 
 type Point = { x: number; y: number };
 
@@ -32,21 +32,6 @@ function shade(color: number, f: number) {
   const g = Math.min(255, Math.round(((color >> 8) & 255) * f));
   const b = Math.min(255, Math.round((color & 255) * f));
   return (r << 16) | (g << 8) | b;
-}
-
-// A soft white dot, tinted per spore.
-function sporeTexture() {
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = SPORE_TEXTURE_SIZE;
-  const ctx = canvas.getContext('2d')!;
-  const c = SPORE_TEXTURE_SIZE / 2;
-  const grad = ctx.createRadialGradient(c, c, 0, c, c, c);
-  grad.addColorStop(0, 'rgba(255,255,255,1)');
-  grad.addColorStop(0.55, 'rgba(255,255,255,0.9)');
-  grad.addColorStop(1, 'rgba(255,255,255,0)');
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, SPORE_TEXTURE_SIZE, SPORE_TEXTURE_SIZE);
-  return Texture.from(canvas);
 }
 
 interface Bug {
@@ -168,7 +153,7 @@ export class CreatureView {
     this.particles = this.particles.filter((p) => moveParticle(p, dt));
 
     // One sprite per spore, reused from frame to frame.
-    this.sporeTex ??= sporeTexture();
+    this.sporeTex ??= dotTexture();
     while (this.sporeSprites.length < this.particles.length) {
       const sprite = new Sprite(this.sporeTex);
       sprite.anchor.set(0.5);
@@ -181,7 +166,7 @@ export class CreatureView {
       if (!p) return;
       const life = p.age / p.life;
       sprite.position.set(p.x, p.y);
-      sprite.scale.set((p.r * 2 * (1 + life * 0.6)) / SPORE_TEXTURE_SIZE);
+      sprite.scale.set((p.r * 2 * (1 + life * 0.6)) / DOT_SIZE);
       sprite.tint = p.color;
       sprite.alpha = 0.75 * (life < 0.15 ? life / 0.15 : 1 - (life - 0.15) / 0.85);
     });

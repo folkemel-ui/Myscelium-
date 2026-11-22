@@ -61,12 +61,12 @@ item gets `[x]` plus a short note in italics saying what was actually done.
 - [x] **Save slots** – Three named slots to save to and load from, each with a small picture of the forest, how much was held and the time played. *(S or the save button opens the save dialog: a name (up to 40 letters, suggested from the forest and share held) and the three slots; writing over a slot asks first. The menu lists the slots with a 96×64 picture (2 pixels a tile, the network in its glow colours), share held, time and when saved, with Load and Delete (which asks first).)*
 - [x] **Export / import** – Download a save as a file and load it back, as a backup or to move to another computer. *("Back up to a file" in the menu downloads everything – profile, the unfinished round and the three slots – as one file (about 12 KB). "Load a backup" asks before replacing anything, and refuses a file that isn't a Mycelium backup or is from another version.)*
 
-### Pack 8 – The trip
+### Pack 8 – The trip ✓
 
-- [ ] **More than saturation** – Slow hue shifts, a gentle colour wave across the forest and glowing outlines as you spread.
-- [ ] **Stages of trippiness** – New effects switch on at 25%, 50% and so on (shimmer, ripples, kaleidoscope edges), each starting with a short visual "wave".
-- [ ] **Colourful takeover** – Tiles under the mycelium change colour themselves (glowing moss, neon ground), so your territory looks different from the wild forest.
-- [ ] **Floating spores** – Drifting glowing specks over your territory, denser as you spread.
+- [x] **More than saturation** – Slow hue shifts, a gentle colour wave across the forest and glowing outlines as you spread. *(Every colour drifts round the colour wheel by up to 28° each way at the goal (none at the start, growing with the square of the spread). A band of colour 7 tiles wide sweeps diagonally across the forest every 9 seconds, a new glow colour each time. Tree crowns get neon outlines in the five glow colours from 15% of the way to the goal, at up to 40% strength.)*
+- [x] **Stages of trippiness** – New effects switch on at 25%, 50% and so on (shimmer, ripples, kaleidoscope edges), each starting with a short visual "wave". *(At 25%, 50%, 75% and 100% of the goal: "The forest stirs" (up to 40 twinkles on the territory), "Colours awaken" (rings of colour leave the mother every 2.4 s), "Everything breathes" (kaleidoscope borders drifting round the map edges) and "The forest dreams" (all at full strength). Each fades in over its stage, and arrives with a ring of light rolling out from the mother over 1.6 s, a brief brightening, and a banner naming the stage. A loaded round already past a stage just has it on, without the wave.)*
+- [x] **Colourful takeover** – Tiles under the mycelium change colour themselves (glowing moss, neon ground), so your territory looks different from the wild forest. *(The territory is painted one pixel per tile in neon moss tinted by each tile's glow colour, and drawn big with smoothing, so the glow blends softly from tile to tile; it is added onto the ground at 5% strength at the start and 25% at the goal. Repainted only when the network changes.)*
+- [x] **Floating spores** – Drifting glowing specks over your territory, denser as you spread. *(From 12 at the start to 180 at the goal, rising slowly off the territory and swaying for 4–7 seconds each, in the glow colours.)* All of the trip together costs about 1.3 ms a frame (median 12.2 ms against 10.9 ms without it at 41% held).
 
 ### Pack 9 – Camera and panel
 

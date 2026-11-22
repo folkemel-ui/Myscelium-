@@ -35,6 +35,10 @@ Things learned while building Mycelium that are worth knowing before the next ch
   the seed and remakes the level, so anything new added to `Game` that changes during a round
   must be added to `SavedRound` too, or it is lost on load: the "carries on exactly" test in
   `save.test.ts` will catch most such slips.
+- `render/TripView.ts` draws the trip; its numbers (stages, hue drift, counts, waves) are plain
+  functions in `render/trip.ts`, tested. The stages go by the share of the goal, so stage 4 comes
+  with the win. Shared small textures (the soft dot, the band, the kaleidoscope tile) are in
+  `render/textures.ts`, made once.
 - `src/ui/App.tsx` is the React panel. It copies a snapshot of the game about 10 times a second;
   React never re-renders every frame.
 - In development the game is on `window.game` and the view on `window.view`. `view.inspect = { x, y, scale }`
@@ -88,5 +92,8 @@ Things learned while building Mycelium that are worth knowing before the next ch
   put longer patch scripts in a file in the scratchpad and run that.
 - Testing saves in the browser writes to the page's localStorage: note what is there first and
   put it back (or clear the `mycelium.` keys) afterwards, so the player's own progress is kept.
+- Additive glow adds up fast: the first territory glow (45% strength in bright moss) washed the
+  network out to pastel. Keep big added layers faint (the ground tops out at 25%) and check the
+  threads still read on top.
 - Enemies need a way to leave. Before beetles got full and walked off, they piled up to 195 on
   one map.

@@ -212,3 +212,24 @@ kbd { font: inherit; font-size: 11px; opacity: 0.7; }
   .menu-grid { grid-template-columns: 1fr; }
   .saves { grid-column: auto; }
 }
+
+/* --- The trip --- */
+.stage-banner {
+  position: absolute; top: 34%; left: 50%; transform: translate(-50%, -50%); pointer-events: none;
+  display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center;
+  animation: stage-in 3.2s ease-out forwards;
+}
+.stage-banner small { font-size: 13px; letter-spacing: 0.3em; text-transform: uppercase; color: #fff3b0; }
+.stage-banner strong {
+  font-size: 40px; letter-spacing: 0.04em;
+  background: linear-gradient(90deg, #ff4fd8, #ffb84f, #b6ff4f, #4ff3ff, #9d6bff);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 0 12px rgba(255, 79, 216, 0.5));
+}
+.stage-banner span { font-size: 14px; color: var(--ink); opacity: 0.85; }
+@keyframes stage-in {
+  0% { opacity: 0; transform: translate(-50%, -40%) scale(0.92); }
+  12% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  80% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -56%); }
+}
