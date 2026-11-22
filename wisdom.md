@@ -10,6 +10,11 @@ Things learned while building Mycelium that are worth knowing before the next ch
 - One commit per pack, with a message listing what changed.
 - Check every feature two ways: `npm test` (Vitest) and by playing it in the browser preview
   (`npm run dev`, port 5173; the preview config is `.claude/launch.json`).
+- The game is published at https://folkemel-ui.github.io/Myscelium-/ (repository
+  github.com/folkemel-ui/Myscelium-). Pushing `main` publishes it: GitHub runs the tests (not the
+  playthrough), builds and deploys (`.github/workflows/deploy.yml`). Commits use the private address
+  246357112+folkemel-ui@users.noreply.github.com (set in this repo's git config), never the real
+  email. Push only when the user asks.
 - `npm run typecheck` must be clean; `npm run build` type-checks and builds.
 - Explain changes in plain words: what changed for the player, with numbers.
 

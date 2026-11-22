@@ -6,8 +6,9 @@ TypeScript and Vite.
 
 ## Play
 
-Once published, the game is at `https://<your-github-name>.github.io/<repository>/`. It also works
-in Safari on an iPhone (touch controls are not tuned yet).
+Play it at **https://folkemel-ui.github.io/Myscelium-/** – also in Safari on an iPhone (touch
+controls are not tuned yet). Saves stay in each browser; move them with Back up to a file / Load a
+backup in the menu.
 
 ## Run it on your own computer
 
