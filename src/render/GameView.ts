@@ -3,7 +3,7 @@
 // as the mycelium takes over.
 import { Application, ColorMatrixFilter, Container, Graphics, Sprite, Texture, type FederatedPointerEvent } from 'pixi.js';
 import { WIN_COVERAGE } from '../game/constants';
-import { burst, canGrowAt, coverage, growMycelium, mushroomAt, plantMushroom } from '../game/sim';
+import { burst, canGrowAt, coverage, growMycelium, mushroomAt, nearestReadyMushroom, plantMushroom } from '../game/sim';
 import { idx, inside, TILE, type Game } from '../game/world';
 import { CreatureView } from './CreatureView';
 import { paintFloor, paintLightSpot } from './floor';
@@ -64,6 +64,10 @@ export class GameView {
   private hover = new Graphics();
   private colour = new ColorMatrixFilter();
   private pointerTile = -1;
+  private pointerAt: { x: number; y: number } | null = null; // the mouse over the map, in tiles
+  // While frozen (paused, or the help is open) the game doesn't move on, the forest stands still,
+  // and clicks on the map do nothing.
+  frozen = false;
   private dragging = false;
   private lastDragTile = -1;
   private clock = 0;
@@ -96,8 +100,8 @@ export class GameView {
     view.app.stage.on('pointerupoutside', () => (view.dragging = false));
     view.app.ticker.add((t) => {
       const dt = Math.min(0.1, t.deltaMS / 1000);
-      onTick(dt);
-      view.draw(dt);
+      if (!view.frozen) onTick(dt);
+      view.draw(view.frozen ? 0 : dt);
     });
     return view;
   }
@@ -156,7 +160,16 @@ export class GameView {
     return inside(this.game, x, y) ? idx(this.game, x, y) : -1;
   }
 
+  // Burst the ready mushroom nearest the mouse (the B key).
+  burstNearest() {
+    if (this.frozen || !this.pointerAt) return;
+    const m = nearestReadyMushroom(this.game, this.pointerAt.x, this.pointerAt.y);
+    if (!m) return this.report(this.game.mushrooms.length ? 'No mushroom is ready to burst' : null);
+    this.report(burst(this.game, m.x, m.y));
+  }
+
   private pointerDown(e: FederatedPointerEvent) {
+    if (this.frozen) return;
     const i = this.tileAt(e);
     if (i < 0) return;
     const g = this.game;
@@ -176,6 +189,9 @@ export class GameView {
   private pointerMove(e: FederatedPointerEvent) {
     const i = this.tileAt(e);
     this.pointerTile = i;
+    const p = this.world.toLocal(e.global);
+    this.pointerAt = { x: p.x / TS, y: p.y / TS };
+    if (this.frozen) return;
     if (!this.dragging || i < 0 || i === this.lastDragTile) return;
     const g = this.game;
     // Grow every tile on the line from the last one, so a fast drag leaves no gaps. Tiles that
@@ -204,6 +220,9 @@ export class GameView {
   // For checking the art up close in development: show tile (x, y) at this scale.
   inspect: { x: number; y: number; scale: number } | null = null;
 
+  // Room to leave at the top for the panel, in screen pixels (the panel can wrap onto two lines).
+  topSpace = 76;
+
   private fit() {
     const { width, height } = this.app.screen;
     if (this.inspect) {
@@ -212,7 +231,7 @@ export class GameView {
       this.world.position.set(width / 2 - (x + 0.5) * TS * scale, height / 2 - (y + 0.5) * TS * scale);
       return;
     }
-    const top = 76; // room for the panel at the top
+    const top = this.topSpace;
     const pad = 16;
     const scale = Math.min((width - pad * 2) / (this.game.w * TS), (height - top - pad) / (this.game.h * TS));
     this.world.scale.set(Math.max(0.2, scale));

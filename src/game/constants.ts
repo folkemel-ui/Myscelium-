@@ -44,3 +44,7 @@ export const BURST_COOLDOWN = 6;
 
 // Hold this share of the forest floor to win.
 export const WIN_COVERAGE = 0.5;
+
+// How often the share of the forest held is noted down, for the chart at the end of a round.
+export const HISTORY_EVERY = 2; // seconds
+export const HISTORY_MAX = 600; // samples; past this, every other one is dropped

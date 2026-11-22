@@ -48,6 +48,7 @@ export function growMycelium(g: Game, x: number, y: number): string | null {
   if (!canGrowAt(g, x, y)) return 'Mycelium can only grow next to your network, on open ground';
   if (g.spores < C.GROW_COST) return `Growing costs ${C.GROW_COST} spores`;
   g.spores -= C.GROW_COST;
+  g.stats.grown++;
   addMycelium(g, idx(g, x, y));
   return null;
 }
@@ -59,6 +60,7 @@ export function plantMushroom(g: Game, x: number, y: number): string | null {
   if (mushroomAt(g, x, y)) return 'There is a mushroom here already';
   if (g.nutrients < C.MUSHROOM_COST) return `A mushroom costs ${C.MUSHROOM_COST} nutrients`;
   g.nutrients -= C.MUSHROOM_COST;
+  g.stats.mushrooms++;
   g.mushrooms.push({ id: g.nextId++, x, y, mother: false, puffTimer: C.PUFF_INTERVAL, cooldown: 0 });
   return null;
 }
@@ -69,6 +71,7 @@ export function burst(g: Game, x: number, y: number): string | null {
   if (!m) return 'Click a mushroom to burst it';
   if (m.cooldown > 0) return `Ready again in ${Math.ceil(m.cooldown)} s`;
   m.cooldown = C.BURST_COOLDOWN;
+  g.stats.bursts++;
   sporeCloud(g, m.x + 0.5, m.y + 0.5, C.BURST_RANGE, C.BURST_DAMAGE, true);
   return null;
 }
@@ -113,6 +116,28 @@ export function step(g: Game, dt: number) {
   g.beetles = alive.filter((b) => b.x > -1 && b.y > -1 && b.x < g.w + 1 && b.y < g.h + 1);
 
   if (g.status === 'playing' && coverage(g) >= C.WIN_COVERAGE) g.status = 'won';
+
+  g.stats.peakSpores = Math.max(g.stats.peakSpores, sporesPerSecond(g));
+  if (g.time >= g.nextSample || g.status !== 'playing') {
+    g.history.push({ t: g.time, held: coverage(g) });
+    g.nextSample += C.HISTORY_EVERY;
+    if (g.history.length > C.HISTORY_MAX) g.history = g.history.filter((_, k) => k % 2 === 0 || k === g.history.length - 1);
+  }
+}
+
+// The mushroom nearest to (x, y), in tiles, that is ready to burst.
+export function nearestReadyMushroom(g: Game, x: number, y: number): Mushroom | undefined {
+  let best: Mushroom | undefined;
+  let bestD = Infinity;
+  for (const m of g.mushrooms) {
+    if (m.cooldown > 0) continue;
+    const d = Math.hypot(m.x + 0.5 - x, m.y + 0.5 - y);
+    if (d < bestD) {
+      bestD = d;
+      best = m;
+    }
+  }
+  return best;
 }
 
 function rotLogs(g: Game, dt: number) {

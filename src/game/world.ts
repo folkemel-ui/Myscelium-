@@ -1,4 +1,4 @@
-import { LOG_NUTRIENTS, MAP_H, MAP_W, START_SPORES } from './constants';
+import { HISTORY_EVERY, LOG_NUTRIENTS, MAP_H, MAP_W, START_SPORES } from './constants';
 import { makeRng, type Rng } from './rng';
 
 export const TILE = { SOIL: 0, TREE: 1, ROCK: 2, LOG: 3 } as const;
@@ -35,6 +35,14 @@ export interface Puff {
 
 export type Status = 'playing' | 'won' | 'lost';
 
+// Counted over a round, for the end screen.
+export interface RoundStats {
+  grown: number; // tiles of mycelium grown by hand
+  mushrooms: number; // mushrooms grown (not counting the mother)
+  bursts: number; // mushrooms burst by clicking
+  peakSpores: number; // the most spores a second
+}
+
 // Things that happened, for the drawing to show (a flash, a beetle flipping over). The view takes
 // them as it draws; the game keeps only the latest MAX_EVENTS if nobody does.
 export type GameEvent =
@@ -62,6 +70,9 @@ export interface Game {
   creep: number; // build-up towards the next tile of creep
   status: Status;
   kills: number;
+  history: { t: number; held: number }[]; // the share of the forest held, every HISTORY_EVERY seconds
+  nextSample: number;
+  stats: RoundStats;
   nextId: number;
   version: number; // goes up whenever tiles or the network change, so the ground is redrawn
   rng: Rng;
@@ -129,6 +140,9 @@ export function createLevel1(seed = 1): Game {
     creep: 0,
     status: 'playing',
     kills: 0,
+    history: [],
+    nextSample: 0,
+    stats: { grown: 0, mushrooms: 0, bursts: 0, peakSpores: 0 },
     nextId: 1,
     version: 0,
     rng,
@@ -141,6 +155,8 @@ export function createLevel1(seed = 1): Game {
   }
   for (let i = 0; i < n; i++) if (canHoldMycelium(tiles[i])) g.growable++;
   g.covered = 5;
+  g.history.push({ t: 0, held: g.covered / g.growable });
+  g.nextSample = HISTORY_EVERY;
   g.mushrooms.push({ id: g.nextId++, x: mx, y: my, mother: true, puffTimer: 0, cooldown: 0 });
   return g;
 }

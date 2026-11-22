@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import * as C from './constants';
-import { burst, canGrowAt, coverage, growMycelium, plantMushroom, sporesPerSecond, step } from './sim';
+import { burst, canGrowAt, coverage, growMycelium, nearestReadyMushroom, plantMushroom, sporesPerSecond, step } from './sim';
 import { createLevel1, idx, TILE, type Game } from './world';
 
 const mother = (g: Game) => g.mushrooms.find((m) => m.mother)!;
@@ -176,6 +176,54 @@ describe('events for the drawing', () => {
       g.beetles.length = 0;
     }
     expect(g.events.length).toBeLessThanOrEqual(200);
+  });
+});
+
+describe('the round in numbers', () => {
+  test('the share held is noted every few seconds, and once more at the end', () => {
+    const g = createLevel1();
+    expect(g.history).toEqual([{ t: 0, held: 5 / g.growable }]);
+    run(g, 10);
+    expect(g.history.length).toBe(1 + Math.floor(10 / C.HISTORY_EVERY + 1e-6));
+    expect(g.history[g.history.length - 1].held).toBeGreaterThan(g.history[0].held);
+    g.covered = Math.ceil(g.growable * C.WIN_COVERAGE);
+    const before = g.history.length;
+    step(g, 0.01);
+    expect(g.status).toBe('won');
+    expect(g.history.length).toBe(before + 1);
+    expect(g.history[g.history.length - 1].held).toBeGreaterThanOrEqual(C.WIN_COVERAGE);
+  });
+
+  test('a long round keeps no more than HISTORY_MAX samples, first and last kept', () => {
+    const g = createLevel1();
+    for (let k = 0; k < C.HISTORY_MAX * 2.5; k++) step(g, C.HISTORY_EVERY);
+    expect(g.history.length).toBeLessThanOrEqual(C.HISTORY_MAX);
+    expect(g.history[0].t).toBe(0);
+    expect(g.history[g.history.length - 1].t).toBeCloseTo(g.time);
+  });
+
+  test('what the player did is counted', () => {
+    const g = createLevel1();
+    const { x, y } = mother(g);
+    growMycelium(g, x + 2, y);
+    g.nutrients = C.MUSHROOM_COST;
+    plantMushroom(g, x + 1, y);
+    burst(g, x, y);
+    step(g, 0.01);
+    expect(g.stats).toMatchObject({ grown: 1, mushrooms: 1, bursts: 1 });
+    expect(g.stats.peakSpores).toBeCloseTo(sporesPerSecond(g));
+  });
+
+  test('the nearest mushroom that is ready to burst', () => {
+    const g = createLevel1();
+    const m = mother(g);
+    g.nutrients = 100;
+    for (let x = m.x + 1; x <= m.x + 4; x++) growMycelium(g, x, m.y);
+    plantMushroom(g, m.x + 4, m.y);
+    expect(nearestReadyMushroom(g, m.x + 6, m.y)?.x).toBe(m.x + 4);
+    expect(nearestReadyMushroom(g, m.x - 2, m.y)?.mother).toBe(true);
+    burst(g, m.x + 4, m.y);
+    expect(nearestReadyMushroom(g, m.x + 6, m.y)?.mother).toBe(true); // the other one is not ready
   });
 });
 

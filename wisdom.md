@@ -64,5 +64,11 @@ Things learned while building Mycelium that are worth knowing before the next ch
 - `view.app.ticker.stop()` and then `ticker.update(time)` steps the game and the drawing by hand,
   for testing animations frame by frame while the pane is hidden. Render, wait one animation frame
   and render again before a screenshot, or it may show an older frame.
+- The preview pane counts as a hidden tab whenever it isn't shown, so the game pauses itself during
+  testing (auto-pause on `visibilitychange`). Resume it first (Space, or a dispatched keydown) before
+  measuring anything, and expect it to pause again if the pane is hidden mid-test.
+- The preview pane refuses fullscreen ("Permissions check failed"); test fullscreen in a real browser.
+- Editing App.tsx hot-reloads it, which can start a new game or leave `window.game` pointing at an
+  old one. Reload the page before testing after an edit.
 - Enemies need a way to leave. Before beetles got full and walked off, they piled up to 195 on
   one map.

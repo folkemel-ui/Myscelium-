@@ -40,24 +40,38 @@ item gets `[x]` plus a short note in italics saying what was actually done.
 - [x] **Animated beetles** – Moving legs, chomping jaws while eating, a flash when hit. *(Six legs walk in two alternating tripods as far as the beetle moves, antennae sway, jaws open and close fast while eating. A hit flashes it white for 0.18 s and knocks it back a little; once hurt, cracks show on its shell.)*
 - [x] **Defeat effect** – A beaten beetle flips over and fades, leaving nutrient sparkles that fly to the counter. *(It hops and flips onto its back in 0.35 s, legs kicking, then fades over 1.1 s. One gold sparkle per nutrient (5) arcs from it to the Nutrients counter in 0.75 s, outside the colour filter so it is bright even in the grey forest, and the number jumps as each lands.)*
 
-### Pack 5 – The trip
+### Pack 5 – Pause, shortcuts and stats ✓
+
+- [x] **Pause** – Space or P pauses and resumes: the forest freezes under a dim "Paused" overlay. It also pauses by itself when you switch to another tab. *(Also a pause/play button in the panel; click the overlay or press Esc to resume. While paused nothing moves – not the game, the trees, the light or the pulses – and clicks on the map do nothing. The help panel pauses too.)*
+- [x] **More shortcuts** – R to restart, Esc to close pop-ups, B to burst the nearest ready mushroom to the mouse, and a help panel listing every key (H or ?). *(R restarts straight away once a round is over; during a round it asks you to press R again within 2 seconds. B says so when no mushroom is ready. The help panel (H, ? or the ? button) explains the goal and lists all 10 controls. Keys with Ctrl, Alt or Cmd held are left alone.)*
+- [x] **Round timer and stats** – Time played and spores per second in the panel, and a small chart of how you spread over time on the end screen. *(The panel shows the time as m:ss. The end screen shows time, forest held, beetles beaten, mushrooms grown, tiles grown by hand and the most spores a second, and a chart of the share held, noted every 2 seconds (at most 600 points), with the goal as a dashed line; hover to read the time and share. The panel now wraps onto two lines in windows under about 1,000 px, and the forest starts below it.)*
+- [x] **Fullscreen button** – One click to fill the screen. *(A button in the panel, or F. If the browser refuses, a message says so. Not checked in the preview pane, which refuses fullscreen.)*
+
+### Pack 6 – Progress between rounds
+
+- [ ] **XP for each round** – When a round ends, won or lost, the player gets XP based on how they did (for example forest held, beetles beaten, time taken, and a bonus for winning).
+- [ ] **Round summary** – A message pops up at the end showing the XP gained and the round's stats, with two buttons at the bottom: "Play again" and "Main Menu".
+- [ ] **Main menu** – Shows a level picker and the player's profile (level, XP towards the next level, upgrade points).
+- [ ] **Levels and upgrade points** – Each level-up gives one point to spend on permanent upgrades that last across the whole game.
+
+### Pack 7 – Saving
+
+- [ ] **Saving the profile** – Level, XP, upgrade points and upgrades are saved in the browser for good, separately from rounds.
+- [ ] **Autosave** – The round in progress is saved every few seconds and when the tab closes, and comes back exactly as it was left.
+- [ ] **Save slots** – Three named slots to save to and load from, each with a small picture of the forest, how much was held and the time played.
+- [ ] **Export / import** – Download a save as a file and load it back, as a backup or to move to another computer.
+
+### Pack 8 – The trip
 
 - [ ] **More than saturation** – Slow hue shifts, a gentle colour wave across the forest and glowing outlines as you spread.
 - [ ] **Stages of trippiness** – New effects switch on at 25%, 50% and so on (shimmer, ripples, kaleidoscope edges), each starting with a short visual "wave".
 - [ ] **Colourful takeover** – Tiles under the mycelium change colour themselves (glowing moss, neon ground), so your territory looks different from the wild forest.
 - [ ] **Floating spores** – Drifting glowing specks over your territory, denser as you spread.
 
-### Pack 6 – Camera and panel
+### Pack 9 – Camera and panel
 
 - [ ] **Zoom and pan** – Scroll to zoom in on the fight and drag to move around, with sharper art up close.
 - [ ] **Styled panel** – A glowing, organic top panel with icons for spores, nutrients and beetles instead of plain text.
-
-### Pack 7 – Progress between rounds
-
-- [ ] **XP for each round** – When a round ends, won or lost, the player gets XP based on how they did (for example forest held, beetles beaten, time taken, and a bonus for winning).
-- [ ] **Round summary** – A message pops up at the end showing the XP gained and the round's stats, with two buttons at the bottom: "Play again" and "Main Menu".
-- [ ] **Main menu** – Shows a level picker and the player's profile (level, XP towards the next level, upgrade points).
-- [ ] **Levels and upgrade points** – Each level-up gives one point to spend on permanent upgrades that last across the whole game. Saved between visits.
 
 ## Later (not in a pack yet)
 
