@@ -23,6 +23,8 @@ html, body, #root { margin: 0; height: 100%; background: #15110d; overflow: hidd
 .stat { display: flex; flex-direction: column; min-width: 70px; }
 .stat .label { font-size: 12px; color: var(--muted); }
 .stat strong { font-size: 20px; font-variant-numeric: tabular-nums; }
+.stat strong.bump { animation: bump 0.25s ease-out; display: inline-block; transform-origin: left center; }
+@keyframes bump { 0% { transform: scale(1.35); color: #fff3b0; text-shadow: 0 0 8px #ffe066; } 100% { transform: scale(1); } }
 .stat .rate { font-size: 12px; color: var(--muted); }
 .goal { min-width: 170px; }
 .bar { height: 8px; margin-top: 6px; border-radius: 4px; background: rgba(255, 255, 255, 0.1); overflow: hidden; }

@@ -22,6 +22,10 @@ Things learned while building Mycelium that are worth knowing before the next ch
   `render/NetworkView.ts` (laid out by `render/networkLayout.ts`): settled threads only when
   `game.version` changes, growing and withering threads and pulses every frame on a live layer; the logs only when one reaches its next rot stage; crowns sway,
   light drifts, and mushrooms, puffs and beetles are drawn every frame.
+- `render/CreatureView.ts` draws mushrooms, spores, beetles, corpses and sparkles. The game tells it
+  what happened through `game.events` (hits, defeats); the view empties the list as it draws, and
+  the game keeps only the last 200 if nobody does (tests, the playthrough). The shapes of the
+  animations are plain functions in `render/anim.ts`, tested.
 - `src/ui/App.tsx` is the React panel. It copies a snapshot of the game about 10 times a second;
   React never re-renders every frame.
 - In development the game is on `window.game` and the view on `window.view`. `view.inspect = { x, y, scale }`
@@ -52,5 +56,13 @@ Things learned while building Mycelium that are worth knowing before the next ch
   one is redrawn with it, or it blinks out in between.
 - Spreading the network breadth-first gave straight comb-like rows; a cheapest-path spread with a
   random cost per tile makes it wander and fork.
+- Pixi rebuilds a Graphics' geometry on every redraw, and that cost lands in render, not in the
+  drawing code: timing `draw()` alone looked cheap while frames took 27 ms. Redrawing ~900 spore
+  circles and 15 whole beetles each frame did that. Spores as tinted sprites of one texture, and
+  beetles with only their legs redrawn (shell, flash and cracks drawn once and shown or faded)
+  brought a heavy fight to a median of 12–14 ms.
+- `view.app.ticker.stop()` and then `ticker.update(time)` steps the game and the drawing by hand,
+  for testing animations frame by frame while the pane is hidden. Render, wait one animation frame
+  and render again before a screenshot, or it may show an older frame.
 - Enemies need a way to leave. Before beetles got full and walked off, they piled up to 195 on
   one map.

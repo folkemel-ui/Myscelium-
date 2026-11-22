@@ -1,7 +1,7 @@
 // The rules of the game: one step moves everything on by dt seconds. Plain TypeScript with no
 // drawing, so it can be tested on its own.
 import * as C from './constants';
-import { canHoldMycelium, idx, inside, TILE, type Beetle, type Game, type Mushroom } from './world';
+import { canHoldMycelium, idx, inside, MAX_EVENTS, TILE, type Beetle, type Game, type GameEvent, type Mushroom } from './world';
 
 const SIDES = [[1, 0], [-1, 0], [0, 1], [0, -1]] as const;
 
@@ -75,7 +75,16 @@ export function burst(g: Game, x: number, y: number): string | null {
 
 function sporeCloud(g: Game, cx: number, cy: number, range: number, damage: number, big: boolean) {
   g.puffs.push({ x: cx, y: cy, radius: range, age: 0, big });
-  for (const b of g.beetles) if (Math.hypot(b.x - cx, b.y - cy) <= range) b.hp -= damage;
+  for (const b of g.beetles) {
+    if (b.hp <= 0 || Math.hypot(b.x - cx, b.y - cy) > range) continue;
+    b.hp -= damage;
+    tell(g, { kind: 'hit', beetle: b.id, damage });
+  }
+}
+
+function tell(g: Game, e: GameEvent) {
+  g.events.push(e);
+  if (g.events.length > MAX_EVENTS) g.events.splice(0, g.events.length - MAX_EVENTS);
 }
 
 // --- The step ---
@@ -94,9 +103,12 @@ export function step(g: Game, dt: number) {
   mushroomsPuff(g, dt);
 
   const alive = g.beetles.filter((b) => b.hp > 0);
-  const defeated = g.beetles.length - alive.length;
-  g.kills += defeated;
-  g.nutrients += defeated * C.BEETLE_NUTRIENTS;
+  for (const b of g.beetles) {
+    if (b.hp > 0) continue;
+    g.kills++;
+    g.nutrients += C.BEETLE_NUTRIENTS;
+    tell(g, { kind: 'defeat', beetle: b.id, x: b.x, y: b.y, nutrients: C.BEETLE_NUTRIENTS });
+  }
   // Full beetles that have walked off the map are gone.
   g.beetles = alive.filter((b) => b.x > -1 && b.y > -1 && b.x < g.w + 1 && b.y < g.h + 1);
 

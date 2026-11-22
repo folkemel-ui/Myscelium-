@@ -2,13 +2,14 @@
 // The whole forest sits under one colour filter: dull grey at the start, bright and saturated
 // as the mycelium takes over.
 import { Application, ColorMatrixFilter, Container, Graphics, Sprite, Texture, type FederatedPointerEvent } from 'pixi.js';
-import { BEETLE_HP, BURST_COOLDOWN, WIN_COVERAGE } from '../game/constants';
+import { WIN_COVERAGE } from '../game/constants';
 import { burst, canGrowAt, coverage, growMycelium, mushroomAt, plantMushroom } from '../game/sim';
-import { idx, inside, TILE, type Beetle, type Game } from '../game/world';
+import { idx, inside, TILE, type Game } from '../game/world';
+import { CreatureView } from './CreatureView';
 import { paintFloor, paintLightSpot } from './floor';
 import { NetworkView } from './NetworkView';
 import {
-  CANOPY_GREENS, crownLayout, glowAt, hash, lightAt, lightSpots, logLook, sway, TS, type Crown, type LightSpot,
+  CANOPY_GREENS, crownLayout, hash, lightAt, lightSpots, logLook, sway, TS, type Crown, type LightSpot,
 } from './forestLayout';
 
 export type Tool = 'grow' | 'mushroom';
@@ -38,6 +39,9 @@ function mix(a: number, b: number, t: number) {
 
 export interface ViewEvents {
   onMessage: (text: string) => void;
+  // Where the nutrient counter is, in the canvas's pixels, for sparkles to fly to.
+  nutrientCounter: () => { x: number; y: number } | null;
+  onSparkle: () => void; // a nutrient sparkle reached the counter
 }
 
 export class GameView {
@@ -56,10 +60,8 @@ export class GameView {
   private lights: { spot: LightSpot; sprite: Sprite }[] = [];
   private lightTexture = Texture.EMPTY;
   readonly network = new NetworkView();
-  private things = new Graphics();
+  readonly creatures = new CreatureView();
   private hover = new Graphics();
-  private beetleLayer = new Container();
-  private beetleShapes = new Map<number, Graphics>();
   private colour = new ColorMatrixFilter();
   private pointerTile = -1;
   private dragging = false;
@@ -79,13 +81,13 @@ export class GameView {
     host.appendChild(view.app.canvas);
     view.world.addChild(
       view.floor, view.logs, view.network.glowLayer, view.network.threadLayer, view.canopy, view.light, view.lightMask,
-      view.things, view.beetleLayer, view.hover,
+      view.creatures.under, view.creatures.mushroomLayer, view.creatures.spores, view.creatures.beetleLayer, view.hover,
     );
     view.light.mask = view.lightMask;
     view.lightTexture = Texture.from(paintLightSpot());
     view.world.filters = [view.colour];
     view.buildForest();
-    view.app.stage.addChild(view.world);
+    view.app.stage.addChild(view.world, view.creatures.sparkles);
     view.app.stage.eventMode = 'static';
     view.app.stage.hitArea = view.app.screen;
     view.app.stage.on('pointerdown', (e) => view.pointerDown(e));
@@ -103,8 +105,7 @@ export class GameView {
   setGame(game: Game) {
     this.game = game;
     this.network.reset();
-    for (const shape of this.beetleShapes.values()) shape.destroy();
-    this.beetleShapes.clear();
+    this.creatures.reset();
     this.buildForest();
   }
 
@@ -237,8 +238,11 @@ export class GameView {
       sprite.position.set(p.x, p.y);
       sprite.alpha = LIGHT_STRENGTH * p.bright;
     }
-    this.drawThings();
-    this.drawBeetles();
+    this.creatures.update(g, this.clock, dt, {
+      toScreen: (x, y) => this.world.toGlobal({ x, y }),
+      counter: this.events.nutrientCounter,
+      onSparkle: this.events.onSparkle,
+    });
     this.drawHover();
   }
 
@@ -298,62 +302,6 @@ export class GameView {
     }
   }
 
-  private drawThings() {
-    const g = this.game;
-    const th = this.things.clear();
-    for (const p of g.puffs) {
-      const life = p.age / 0.7;
-      const r = p.radius * TS * (0.4 + 0.6 * life);
-      th.circle(p.x * TS, p.y * TS, r).fill({ color: p.big ? 0xff7af0 : 0xd8ff7a, alpha: 0.35 * (1 - life) });
-      th.circle(p.x * TS, p.y * TS, r).stroke({ width: 2, color: 0xffffff, alpha: 0.5 * (1 - life) });
-    }
-    for (const m of g.mushrooms) {
-      const cx = m.x * TS + TS / 2;
-      const cy = m.y * TS + TS / 2;
-      const size = m.mother ? 1.5 : 1;
-      const bob = Math.sin(this.clock * 2 + m.id) * 0.8;
-      th.ellipse(cx + 2, cy + 6, 7 * size, 3 * size).fill({ color: 0x000000, alpha: 0.3 });
-      th.roundRect(cx - 2.5 * size, cy - 1, 5 * size, 8 * size, 2).fill(0xf3e6c8);
-      const cap = m.mother ? 0xff3d7f : glowAt(g.noise[idx(g, m.x, m.y)]);
-      th.ellipse(cx, cy - 2 + bob, 9 * size, 6.5 * size).fill(cap);
-      for (const [sx, sy] of [[-4, -4], [3, -5], [0, -1], [5, -1]]) {
-        th.circle(cx + sx * size, cy + (sy - 1) * size + bob, 1.4 * size).fill({ color: 0xffffff, alpha: 0.85 });
-      }
-      // A ring shows the burst filling up again.
-      if (m.cooldown > 0) {
-        const done = 1 - m.cooldown / BURST_COOLDOWN;
-        th.moveTo(cx, cy - 13 * size)
-          .arc(cx, cy, 13 * size, -Math.PI / 2, -Math.PI / 2 + done * Math.PI * 2)
-          .stroke({ width: 2, color: 0xffffff, alpha: 0.6 });
-      }
-    }
-  }
-
-  private drawBeetles() {
-    const g = this.game;
-    const alive = new Set<number>();
-    for (const b of g.beetles) {
-      alive.add(b.id);
-      let shape = this.beetleShapes.get(b.id);
-      if (!shape) {
-        shape = beetleShape();
-        this.beetleShapes.set(b.id, shape);
-        this.beetleLayer.addChild(shape);
-      }
-      const nx = b.x * TS;
-      const ny = b.y * TS;
-      if (Math.hypot(nx - shape.x, ny - shape.y) > 0.05) shape.rotation = Math.atan2(ny - shape.y, nx - shape.x);
-      shape.position.set(nx, ny);
-      shape.alpha = 0.6 + 0.4 * (b.hp / BEETLE_HP);
-      shape.scale.set(eating(b) ? 1 + 0.06 * Math.sin(this.clock * 20) : 1);
-    }
-    for (const [id, shape] of this.beetleShapes) {
-      if (alive.has(id)) continue;
-      shape.destroy();
-      this.beetleShapes.delete(id);
-    }
-  }
-
   private drawHover() {
     const h = this.hover.clear();
     const g = this.game;
@@ -369,8 +317,6 @@ export class GameView {
     h.rect(x * TS + 1, y * TS + 1, TS - 2, TS - 2).stroke({ width: 2, color: ok ? 0xffffff : 0xff5050, alpha: 0.8 });
   }
 }
-
-const eating = (b: Beetle) => b.eatTimer > 0;
 
 // A tree crown seen from above: a dark base, clumps of leaves lighter towards the top left, and a
 // few glints. Drawn round its own centre so it can sway.
@@ -388,19 +334,5 @@ function crownShape(c: Crown) {
   }
   for (const b of c.blobs) s.circle(b.dx, b.dy, b.r).fill(shade(base, 0.75 + 0.45 * b.light));
   for (const p of c.specks) s.circle(p.dx, p.dy, p.r).fill({ color: 0xe8ffd0, alpha: 0.2 });
-  return s;
-}
-
-// A beetle seen from above, facing right: legs, a shiny shell split down the middle, and a head.
-function beetleShape() {
-  const s = new Graphics();
-  for (const lx of [-3, 0, 3]) {
-    s.moveTo(lx, -3).lineTo(lx - 1, -7).stroke({ width: 1.2, color: 0x1a1a22 });
-    s.moveTo(lx, 3).lineTo(lx - 1, 7).stroke({ width: 1.2, color: 0x1a1a22 });
-  }
-  s.ellipse(0, 0, 6.5, 4.8).fill(0x2a3550);
-  s.moveTo(-6, 0).lineTo(5, 0).stroke({ width: 0.8, color: 0x0d1020 });
-  s.ellipse(-1, -2, 3, 1.3).fill({ color: 0xffffff, alpha: 0.25 });
-  s.circle(7, 0, 2.6).fill(0x1a1a22);
   return s;
 }

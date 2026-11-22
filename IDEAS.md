@@ -32,13 +32,13 @@ item gets `[x]` plus a short note in italics saying what was actually done.
 - [x] **Pulses along the network** – Little light pulses travelling out from the mother along the threads, like a heartbeat. *(A bright dot with a coloured halo sets off from the mother to a random tip every 0.35 s at the start and every 0.12 s at the goal, at 4.5 threads a second, up to 40 at once.)*
 - [x] **Damage you can see** – Eaten tiles wither and fade instead of vanishing. *(An eaten thread shrivels, wobbles, sags, fades and turns the colour of dead leaves over 0.9 s.)*
 
-### Pack 4 – Mushrooms and beetles
+### Pack 4 – Mushrooms and beetles ✓
 
-- [ ] **Better mushrooms** – Proper caps with gills and highlights, different shapes and sizes, and a grander mother.
-- [ ] **Sprouting** – A new mushroom pushes up from the ground and wobbles into place.
-- [ ] **Bursts with character** – The cap squashes and springs back as the cloud shoots out; spores swirl out as many small particles instead of one circle.
-- [ ] **Animated beetles** – Moving legs, chomping jaws while eating, a flash when hit.
-- [ ] **Defeat effect** – A beaten beetle flips over and fades, leaving nutrient sparkles that fly to the counter.
+- [x] **Better mushrooms** – Proper caps with gills and highlights, different shapes and sizes, and a grander mother. *(Three cap shapes – a spotted dome, a wide flat cap with a dimple and a ring of dots, a tall striped cone – at sizes 0.85–1.15, seen a little from the side: a shaded stem, gills as a band under the rim, a darker rim and a shine. The mother is a 1.55× spotted dome with a frilly ring on her stem and a pulsing pink aura. They sway gently.)*
+- [x] **Sprouting** – A new mushroom pushes up from the ground and wobbles into place. *(Over 0.8 s it rises from nothing to 111% of its height, then wobbles back to 100%, widening as it rises.)*
+- [x] **Bursts with character** – The cap squashes and springs back as the cloud shoots out; spores swirl out as many small particles instead of one circle. *(A burst squashes the cap to 62% height, bulging sideways, and springs back over 0.6 s. It throws 70 spores in the five glow colours, a mushroom's own puff 18 pale green ones; they fly out to about the edge of the cloud's reach, swirl, slow and fade within a second, up to 900 at once. A fading ring shows the reach.)*
+- [x] **Animated beetles** – Moving legs, chomping jaws while eating, a flash when hit. *(Six legs walk in two alternating tripods as far as the beetle moves, antennae sway, jaws open and close fast while eating. A hit flashes it white for 0.18 s and knocks it back a little; once hurt, cracks show on its shell.)*
+- [x] **Defeat effect** – A beaten beetle flips over and fades, leaving nutrient sparkles that fly to the counter. *(It hops and flips onto its back in 0.35 s, legs kicking, then fades over 1.1 s. One gold sparkle per nutrient (5) arcs from it to the Nutrients counter in 0.75 s, outside the colour filter so it is bright even in the grey forest, and the number jumps as each lands.)*
 
 ### Pack 5 – The trip
 

@@ -140,6 +140,45 @@ describe('beetles', () => {
   });
 });
 
+describe('events for the drawing', () => {
+  const beetleAt = (g: Game, x: number, y: number, hp = C.BEETLE_HP) =>
+    g.beetles.push({ id: g.nextId++, x, y, hp, target: -1, eatTimer: 0, retarget: 0, ate: 0 });
+
+  test('hits and defeats are told, with where the beetle fell', () => {
+    const g = createLevel1();
+    const m = mother(g);
+    beetleAt(g, m.x + 1, m.y + 0.5);
+    beetleAt(g, m.x + 3, m.y + 0.5, 100);
+    burst(g, m.x, m.y);
+    expect(g.events.filter((e) => e.kind === 'hit')).toHaveLength(2);
+    step(g, 0.01);
+    const defeats = g.events.filter((e) => e.kind === 'defeat');
+    expect(defeats).toHaveLength(1);
+    expect(defeats[0]).toMatchObject({ nutrients: C.BEETLE_NUTRIENTS });
+    const d = defeats[0] as { x: number; y: number };
+    expect(Math.hypot(d.x - (m.x + 1), d.y - (m.y + 0.5))).toBeLessThan(0.05);
+  });
+
+  test('a beetle walking off the map is not a defeat', () => {
+    const g = createLevel1();
+    g.beetles.push({ id: 99, x: 0.5, y: 10.5, hp: C.BEETLE_HP, target: -1, eatTimer: 0, retarget: 0, ate: C.BEETLE_APPETITE });
+    run(g, 5);
+    expect(g.beetles).toHaveLength(0);
+    expect(g.events.some((e) => e.kind === 'defeat')).toBe(false);
+  });
+
+  test('old events are dropped if nobody takes them', () => {
+    const g = createLevel1();
+    for (let k = 0; k < 500; k++) {
+      beetleAt(g, mother(g).x + 0.5, mother(g).y + 0.5, 1000);
+      mother(g).cooldown = 0;
+      burst(g, mother(g).x, mother(g).y);
+      g.beetles.length = 0;
+    }
+    expect(g.events.length).toBeLessThanOrEqual(200);
+  });
+});
+
 test('holding half the forest floor wins', () => {
   const g = createLevel1();
   g.covered = Math.ceil(g.growable * C.WIN_COVERAGE);

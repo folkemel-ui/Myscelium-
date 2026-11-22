@@ -35,6 +35,13 @@ export interface Puff {
 
 export type Status = 'playing' | 'won' | 'lost';
 
+// Things that happened, for the drawing to show (a flash, a beetle flipping over). The view takes
+// them as it draws; the game keeps only the latest MAX_EVENTS if nobody does.
+export type GameEvent =
+  | { kind: 'hit'; beetle: number; damage: number }
+  | { kind: 'defeat'; beetle: number; x: number; y: number; nutrients: number };
+export const MAX_EVENTS = 200;
+
 export interface Game {
   w: number;
   h: number;
@@ -47,6 +54,7 @@ export interface Game {
   mushrooms: Mushroom[];
   beetles: Beetle[];
   puffs: Puff[];
+  events: GameEvent[];
   spores: number;
   nutrients: number;
   time: number;
@@ -113,6 +121,7 @@ export function createLevel1(seed = 1): Game {
     mushrooms: [],
     beetles: [],
     puffs: [],
+    events: [],
     spores: START_SPORES,
     nutrients: 0,
     time: 0,

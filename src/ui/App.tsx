@@ -37,6 +37,8 @@ const beetles = (n: number) => (n === 1 ? '1 beetle' : `${n} beetles`);
 
 export function App() {
   const host = useRef<HTMLDivElement>(null);
+  const nutrientsEl = useRef<HTMLElement>(null);
+  const [bump, setBump] = useState(0); // goes up as nutrient sparkles land, to make the number jump
   const view = useRef<GameView | null>(null);
   const game = useRef<Game>(createLevel1(Math.floor(Math.random() * 1e9)));
   const [snap, setSnap] = useState(() => snapshot(game.current));
@@ -58,7 +60,17 @@ export function App() {
       }
     };
     const onMessage = (text: string) => setMessage({ text, id: Date.now() });
-    GameView.create(host.current!, game.current, { onMessage }, onTick).then((v) => {
+    // Where the nutrient counter is, in the canvas's own pixels.
+    const nutrientCounter = () => {
+      const el = nutrientsEl.current;
+      const box = host.current;
+      if (!el || !box) return null;
+      const r = el.getBoundingClientRect();
+      const b = box.getBoundingClientRect();
+      return { x: r.left - b.left + r.width / 2, y: r.top - b.top + r.height / 2 };
+    };
+    const onSparkle = () => setBump((n) => n + 1);
+    GameView.create(host.current!, game.current, { onMessage, nutrientCounter, onSparkle }, onTick).then((v) => {
       if (disposed) v.destroy();
       else view.current = v;
       if (import.meta.env.DEV) (window as unknown as { view: GameView }).view = v;
@@ -107,7 +119,7 @@ export function App() {
         </div>
         <div className="stat">
           <span className="label">Nutrients</span>
-          <strong>{Math.floor(snap.nutrients)}</strong>
+          <strong ref={nutrientsEl} key={bump} className={bump ? 'bump' : ''}>{Math.floor(snap.nutrients)}</strong>
         </div>
         <div className="stat goal">
           <span className="label">
