@@ -61,6 +61,7 @@ export function App() {
     GameView.create(host.current!, game.current, { onMessage }, onTick).then((v) => {
       if (disposed) v.destroy();
       else view.current = v;
+      if (import.meta.env.DEV) (window as unknown as { view: GameView }).view = v;
     });
     return () => {
       disposed = true;

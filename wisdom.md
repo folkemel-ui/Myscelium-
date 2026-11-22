@@ -18,11 +18,17 @@ Things learned while building Mycelium that are worth knowing before the next ch
 - `src/game/` is the rules: plain TypeScript, no React or Pixi, so it can be tested on its own.
   `world.ts` makes the level and holds the types, `sim.ts` has `step(game, dt)` and the player's
   actions (each returns `null` when it worked, or a reason it didn't), `constants.ts` every number.
-- `src/render/GameView.ts` draws with PixiJS and turns clicks into actions. The ground and network
-  are redrawn only when `game.version` changes; mushrooms, puffs and beetles every frame.
+- `src/render/GameView.ts` draws with PixiJS and turns clicks into actions. The network is redrawn
+  only when `game.version` changes, the logs only when one reaches its next rot stage; crowns sway,
+  light drifts, and mushrooms, puffs and beetles are drawn every frame.
 - `src/ui/App.tsx` is the React panel. It copies a snapshot of the game about 10 times a second;
   React never re-renders every frame.
-- In development the game is on `window.game`, for poking at from the console in tests.
+- In development the game is on `window.game` and the view on `window.view`. `view.inspect = { x, y, scale }`
+  shows tile (x, y) up close (the browser tool's zoom only crops, it doesn't magnify); set it back to
+  `null` afterwards.
+- The forest floor (soil, leaves, rocks, shade) is painted once per forest in `render/floor.ts` and
+  shown as one texture. Where things go comes from `render/forestLayout.ts`, plain numbers that are
+  tested; a forest always looks the same for the same level.
 - `src/game/playthrough.test.ts` plays level 1 with a script on five maps and prints how long it
   took: the balance check. Rerun it after changing any number in `constants.ts`.
 
@@ -34,5 +40,9 @@ Things learned while building Mycelium that are worth knowing before the next ch
   first, or a stray line appears.
 - Pointer moves can jump several tiles at once: drag tools must fill in the tiles on the line
   between two moves.
+- When the browser pane is hidden the page runs as a background tab: frame times read 33 ms and
+  React updates lag. Time drawing directly instead: call `view.draw` and `app.renderer.render`, then
+  `gl.readPixels` one pixel so the graphics card finishes. Pack 2: 7 ms a frame at 1280×800, about
+  3 ms of it the 234 swaying crowns (`cacheAsTexture` saved only 0.4 ms, so it isn't used).
 - Enemies need a way to leave. Before beetles got full and walked off, they piled up to 195 on
   one map.
