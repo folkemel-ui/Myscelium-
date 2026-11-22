@@ -49,8 +49,10 @@ Things learned while building Mycelium that are worth knowing before the next ch
 - The forest floor (soil, leaves, rocks, shade) is painted once per forest in `render/floor.ts` and
   shown as one texture. Where things go comes from `render/forestLayout.ts`, plain numbers that are
   tested; a forest always looks the same for the same level.
-- `src/game/playthrough.test.ts` plays level 1 with a script on five maps and prints how long it
-  took: the balance check. Rerun it after changing any number in `constants.ts`.
+- `src/game/playthrough.test.ts` plays level 1 on five maps with three players – sharp (acts every
+  second, bursts everything), casual (every 3 s, one burst at a time) and idle (nobody) – and prints
+  results, tiles eaten and mushrooms lost: the balance check. Rerun it after changing any number in
+  `constants.ts`. Balance for the casual player: the sharp one is close to perfect and hides threats.
 
 ## Lessons
 
@@ -106,5 +108,13 @@ Things learned while building Mycelium that are worth knowing before the next ch
   page with a round in play autosaves it on the way out. A test round of Pack 8 slipped into the
   saves exactly like that and showed up as "Continue your round" (0:07, 41% held).
 - A filter on a layer (the crowns, the threads) costs about 0.4 ms a frame each at 1280×800.
+- Graphics geometry is rebuilt at render time, so timing the drawing code alone hides most of the
+  cost: the network redraw "7.5 ms" was really about 41 ms with the rebuild. Time draw + render +
+  `gl.readPixels` together.
+- The browser pane's screenshot can capture only the top-left part of the page (about 1024×640 of
+  1280×800 here, likely the 1.25 display scale): things on the right or bottom may be missing from
+  a screenshot while drawn fine. Put what you want to see near the middle (`view.inspect`).
+- React (in development) starts the app twice; anything handed out from the async view creation
+  (like `window.view`) must be the one kept, not the one thrown away.
 - Enemies need a way to leave. Before beetles got full and walked off, they piled up to 195 on
   one map.

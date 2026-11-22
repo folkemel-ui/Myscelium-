@@ -22,7 +22,12 @@ export interface Beetle {
   target: number; // tile index it is heading for, -1 for none
   eatTimer: number;
   retarget: number;
-  ate: number; // tiles eaten; at BEETLE_APPETITE it is full and walks off the map
+  ate: number; // tiles eaten; at its appetite it is full and walks off the map
+  aim?: 'any' | 'mushroom' | 'mother'; // what it goes for (any: the nearest mycelium)
+  maxHp?: number; // its health when it arrived (BEETLE_HP if missing)
+  speed?: number; // tiles a second (BEETLE_SPEED if missing)
+  appetite?: number; // tiles it eats before leaving (BEETLE_APPETITE if missing)
+  born?: number; // when it arrived, in round seconds
 }
 
 // A spore cloud, for the drawing only.

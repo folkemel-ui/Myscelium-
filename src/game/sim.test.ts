@@ -1,6 +1,9 @@
 import { describe, expect, test } from 'vitest';
 import * as C from './constants';
-import { burst, canGrowAt, coverage, growMycelium, nearestReadyMushroom, plantMushroom, sporesPerSecond, step } from './sim';
+import {
+  burst, canGrowAt, coverage, eatTimeFor, underAttack, growMycelium, nearestReadyMushroom, newBeetle, plantMushroom, sporesPerSecond, step,
+  swarmSize,
+} from './sim';
 import { createLevel1, idx, TILE, type Game } from './world';
 
 const mother = (g: Game) => g.mushrooms.find((m) => m.mother)!;
@@ -102,7 +105,9 @@ describe('beetles', () => {
     m.puffTimer = 1000;
     g.time = 0;
     run(g, C.BEETLE_EAT_TIME + 0.3);
-    expect(g.status).toBe('lost');
+    expect(g.status).toBe('playing'); // the mother holds out longer than a thread...
+    run(g, C.BEETLE_EAT_TIME * (C.MOTHER_EAT_FACTOR - 1));
+    expect(g.status).toBe('lost'); // ...but not for ever
   });
 
   test('a full beetle walks off the map and is gone', () => {
@@ -137,6 +142,91 @@ describe('beetles', () => {
     expect(g.beetles).toHaveLength(0);
     expect(g.kills).toBe(1);
     expect(g.nutrients).toBe(C.BEETLE_NUTRIENTS);
+  });
+});
+
+describe('a real threat', () => {
+  test('beetles come in swarms, bigger later and the further you spread', () => {
+    const early = createLevel1(3);
+    early.time = 30;
+    const late = createLevel1(3);
+    late.time = 300;
+    late.covered = Math.ceil(late.growable * C.WIN_COVERAGE * 0.9);
+    const avg = (g: Game) => {
+      let total = 0;
+      for (let k = 0; k < 400; k++) total += swarmSize(g);
+      return total / 400;
+    };
+    expect(avg(early)).toBeLessThan(1.6);
+    expect(avg(late)).toBeGreaterThan(2.2);
+    for (let k = 0; k < 200; k++) expect(swarmSize(late)).toBeLessThanOrEqual(C.SWARM_MAX);
+  });
+
+  test('later beetles are tougher, faster and hungrier, up to a limit', () => {
+    const g = createLevel1(3);
+    const first = newBeetle(g, 0, 0);
+    expect(first).toMatchObject({ hp: C.BEETLE_HP, appetite: C.BEETLE_APPETITE });
+    g.time = 150;
+    const later = newBeetle(g, 0, 0);
+    expect(later.hp).toBe(C.BEETLE_HP + 2 * C.TOUGHER_HP);
+    expect(later.speed!).toBeCloseTo(C.BEETLE_SPEED * (1 + 2 * C.TOUGHER_SPEED));
+    expect(later.appetite).toBe(C.BEETLE_APPETITE + 1);
+    g.time = 3600;
+    const veteran = newBeetle(g, 0, 0);
+    expect(veteran.hp).toBe(C.BEETLE_HP + C.TOUGHER_MAX * C.TOUGHER_HP);
+    expect(veteran.appetite).toBe(C.BEETLE_APPETITE + C.HUNGRIER_MAX);
+  });
+
+  test('some beetles go for mushrooms, some for the mother', () => {
+    const g = createLevel1(3);
+    g.time = C.AIM_MOTHER_FROM;
+    const aims = { any: 0, mushroom: 0, mother: 0 };
+    for (let k = 0; k < 2000; k++) aims[newBeetle(g, 0, 0).aim!]++;
+    expect(aims.mother / 2000).toBeCloseTo(C.AIM_MOTHER, 1);
+    expect(aims.mushroom / 2000).toBeCloseTo(C.AIM_MUSHROOM, 1);
+  });
+
+  test('no beetle goes for the mother in the first minute', () => {
+    const g = createLevel1(3);
+    g.time = C.AIM_MOTHER_FROM - 1;
+    for (let k = 0; k < 500; k++) expect(newBeetle(g, 0, 0).aim).not.toBe('mother');
+  });
+
+  test('a mushroom-hunting beetle walks past threads to a mushroom and eats it', () => {
+    const g = createLevel1(3);
+    const m = mother(g);
+    g.spores = 500;
+    g.nutrients = 100;
+    for (let x = m.x + 1; x <= m.x + 6; x++) growMycelium(g, x, m.y);
+    plantMushroom(g, m.x + 6, m.y);
+    const hunter = { ...newBeetle(g, m.x - 6.5, m.y + 0.5), aim: 'mushroom' as const, hp: 1e9, appetite: 99 };
+    g.beetles.push(hunter);
+    for (const mm of g.mushrooms) mm.puffTimer = 1e9;
+    g.nextBeetle = 1e9;
+    run(g, 20);
+    expect(g.mushrooms.some((mm) => mm.x === m.x + 6)).toBe(false); // eaten
+    expect(g.status).toBe('playing');
+  });
+
+  test('a mushroom being eaten is known, with how far along', () => {
+    const g = createLevel1(3);
+    const m = mother(g);
+    expect(underAttack(g)).toEqual([]);
+    g.beetles.push({ ...newBeetle(g, m.x + 0.5, m.y + 0.5), target: idx(g, m.x, m.y), eatTimer: g.mods.eatTime * C.MOTHER_EAT_FACTOR / 2 });
+    const a = underAttack(g);
+    expect(a).toHaveLength(1);
+    expect(a[0].mushroom.mother).toBe(true);
+    expect(a[0].progress).toBeCloseTo(0.5);
+  });
+
+  test('mushrooms take longer to eat than threads, and the mother longest', () => {
+    const g = createLevel1(3);
+    const m = mother(g);
+    g.nutrients = 100;
+    plantMushroom(g, m.x + 1, m.y);
+    expect(eatTimeFor(g, idx(g, m.x, m.y - 1))).toBe(g.mods.eatTime);
+    expect(eatTimeFor(g, idx(g, m.x + 1, m.y))).toBe(g.mods.eatTime * C.MUSHROOM_EAT_FACTOR);
+    expect(eatTimeFor(g, idx(g, m.x, m.y))).toBe(g.mods.eatTime * C.MOTHER_EAT_FACTOR);
   });
 });
 

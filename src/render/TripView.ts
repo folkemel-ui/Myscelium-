@@ -61,6 +61,10 @@ export class TripView {
   private lastClock = 0;
   private twinkles: Speck[] = [];
   private floaters: Speck[] = [];
+  // Finished specks' sprites wait here to be used again: making and throwing away a sprite for
+  // every speck made the browser stop now and then to clean up.
+  private spareTwinkles: Sprite[] = [];
+  private spareFloaters: Sprite[] = [];
   private tiles: number[] = []; // mycelium tiles, to place specks on
   private w = 0;
   private h = 0;
@@ -96,7 +100,8 @@ export class TripView {
     this.version = -1;
     this.stage = stageFor(share);
     this.waveAt = -Infinity;
-    for (const s of [...this.twinkles, ...this.floaters]) s.sprite.destroy();
+    for (const p of this.twinkles) this.retire(p.sprite, this.spareTwinkles);
+    for (const p of this.floaters) this.retire(p.sprite, this.spareFloaters);
     this.twinkles = [];
     this.floaters = [];
 
@@ -209,30 +214,46 @@ export class TripView {
     this.groundTexture!.source.update();
   }
 
+  // A sprite from the spares, or a new one if there are none.
+  private take(spare: Sprite[], layer: Container) {
+    const sprite = spare.pop();
+    if (sprite) {
+      sprite.visible = true;
+      return sprite;
+    }
+    const made = new Sprite(dotTexture());
+    made.anchor.set(0.5);
+    layer.addChild(made);
+    return made;
+  }
+
+  private retire(sprite: Sprite, spare: Sprite[]) {
+    sprite.visible = false;
+    spare.push(sprite);
+  }
+
   // Twinkles (shimmer, from stage 1) and floating specks, both on the territory.
   private updateSpecks(clock: number, dt: number, share: number, shimmer: number) {
-    const tex = dotTexture();
     const spawn = (list: Speck[], life: number, size: number) => {
       if (!this.tiles.length) return;
       const t = this.tiles[Math.floor(Math.random() * this.tiles.length)];
-      const sprite = new Sprite(tex);
-      sprite.anchor.set(0.5);
+      const twinkle = list === this.twinkles;
+      const sprite = this.take(twinkle ? this.spareTwinkles : this.spareFloaters, twinkle ? this.twinkleLayer : this.floaterLayer);
       sprite.tint = GLOW[Math.floor(Math.random() * GLOW.length)];
-      (list === this.twinkles ? this.twinkleLayer : this.floaterLayer).addChild(sprite);
       list.push({
         sprite, born: clock, life: life * (0.7 + Math.random() * 0.6), size: size * (0.6 + Math.random() * 0.8),
         x: (t % (this.w / TS) + Math.random()) * TS, y: (Math.floor(t / (this.w / TS)) + Math.random()) * TS,
         phase: Math.random() * Math.PI * 2,
       });
     };
-    const age = (list: Speck[]) =>
+    const age = (list: Speck[], spare: Sprite[]) =>
       list.filter((p) => {
         if (clock - p.born < p.life) return true;
-        p.sprite.destroy();
+        this.retire(p.sprite, spare);
         return false;
       });
 
-    this.twinkles = age(this.twinkles);
+    this.twinkles = age(this.twinkles, this.spareTwinkles);
     while (this.twinkles.length < Math.round(TWINKLES * shimmer) && this.tiles.length) spawn(this.twinkles, 0.9, 7);
     for (const p of this.twinkles) {
       const u = (clock - p.born) / p.life;
@@ -241,7 +262,7 @@ export class TripView {
       p.sprite.alpha = 0.9 * Math.sin(u * Math.PI);
     }
 
-    this.floaters = age(this.floaters);
+    this.floaters = age(this.floaters, this.spareFloaters);
     const want = floaterCount(share);
     for (let k = 0; k < 3 && this.floaters.length < want; k++) spawn(this.floaters, 5.5, 4);
     for (const p of this.floaters) {

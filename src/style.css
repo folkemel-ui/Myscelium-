@@ -233,3 +233,12 @@ kbd { font: inherit; font-size: 11px; opacity: 0.7; }
   80% { opacity: 1; }
   100% { opacity: 0; transform: translate(-50%, -56%); }
 }
+
+/* --- Danger --- */
+.mother-alarm {
+  position: absolute; top: 92px; left: 50%; transform: translateX(-50%); pointer-events: none;
+  padding: 6px 16px; border-radius: 8px; font-weight: 600; font-size: 14px; color: #fff;
+  background: rgba(180, 30, 30, 0.85); border: 1px solid #ff6a5a; box-shadow: 0 0 18px rgba(255, 60, 40, 0.5);
+  animation: alarm 0.8s ease-in-out infinite alternate;
+}
+@keyframes alarm { from { opacity: 0.75; } to { opacity: 1; } }

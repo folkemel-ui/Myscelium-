@@ -20,12 +20,15 @@ export type Tool = 'grow' | 'mushroom';
 const LIGHT_STRENGTH = 0.12;
 
 
-// How dull the forest is: the filter's saturation, from nearly grey at the start to vivid at the
+// How dull the forest is: the filter's saturation, from dull at the start to vivid at the
 // goal. Pixi's saturate is fully grey at -1 and flips colours to their opposites below that.
 // It tops out at +0.45: the colour at the goal comes from what glows, not from turning everything up.
 export const MAX_SATURATION = 0.45;
+// It starts at -0.6: dull, but logs, mushrooms and beetles can still be told apart (at -0.85 they
+// blended into the grey).
+export const MIN_SATURATION = -0.6;
 export function saturationFor(share: number) {
-  return -0.85 + (0.85 + MAX_SATURATION) * Math.min(1, share);
+  return MIN_SATURATION + (MAX_SATURATION - MIN_SATURATION) * Math.min(1, share);
 }
 
 function shade(color: number, f: number) {
@@ -94,7 +97,7 @@ export class GameView {
     view.world.addChild(
       view.floor, view.trip.ground, view.logs, view.network.glowLayer, view.network.threadLayer, view.canopy,
       view.trip.spots, view.light, view.lightMask, view.trip.air, view.trip.airMask, view.creatures.halos,
-      view.creatures.under, view.creatures.mushroomLayer, view.creatures.spores, view.creatures.beetleLayer, view.hover,
+      view.creatures.under, view.creatures.mushroomLayer, view.creatures.spores, view.creatures.beetleLayer, view.creatures.danger, view.hover,
     );
     view.light.mask = view.lightMask;
     view.lightTexture = Texture.from(paintLightSpot());

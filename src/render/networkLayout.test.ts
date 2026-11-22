@@ -1,7 +1,9 @@
 import { describe, expect, test } from 'vitest';
-import { growMycelium, step } from '../game/sim';
+import { canGrowAt, growMycelium, step } from '../game/sim';
 import { createLevel1, idx, type Game } from '../game/world';
-import { BRANCH_MIN, MAX_THREAD, networkLayout, pathFromRoot, pointOnThread } from './networkLayout';
+import {
+  BRANCH_MIN, changedChunks, CHUNK, chunkOf, MAX_THREAD, networkLayout, nodeSignature, pathFromRoot, pointOnThread,
+} from './networkLayout';
 
 // A level with a good spread of mycelium.
 function grown(seed = 2): Game {
@@ -147,5 +149,40 @@ describe('branch colours', () => {
       if (n.branch !== p.branch) changes++;
     }
     expect(changes / links).toBeLessThan(0.15); // random colours would change at 4 links in 5
+  });
+});
+
+describe('drawing in chunks', () => {
+  const signatures = (net: ReturnType<typeof networkLayout>) => new Map([...net.nodes.values()].map((n) => [n.tile, nodeSignature(n)]));
+
+  test('nothing changed: nothing to redraw', () => {
+    const g = grown(4);
+    const a = signatures(networkLayout(g));
+    expect(changedChunks(a, signatures(networkLayout(g)), g.w).size).toBe(0);
+  });
+
+  test('one new tile at the edge redraws only a few of the chunks', () => {
+    const g = grown(4);
+    const before = signatures(networkLayout(g));
+    // Grow one tile at the network's edge, far from the mother.
+    const m = g.mushrooms[0];
+    let far = -1;
+    for (let y = 0; y < g.h; y++) for (let x = 0; x < g.w; x++) {
+      if (canGrowAt(g, x, y) && (far < 0 || Math.hypot(x - m.x, y - m.y) > Math.hypot((far % g.w) - m.x, Math.floor(far / g.w) - m.y))) far = idx(g, x, y);
+    }
+    g.mycelium[far] = 1;
+    const dirty = changedChunks(before, signatures(networkLayout(g)), g.w);
+    const all = Math.ceil(g.w / CHUNK) * Math.ceil(g.h / CHUNK);
+    expect(dirty.has(chunkOf(far, g.w))).toBe(true);
+    expect(dirty.size).toBeLessThanOrEqual(all / 3);
+  });
+
+  test('an eaten tile redraws the chunk it was in', () => {
+    const g = grown(4);
+    const before = signatures(networkLayout(g));
+    const m = g.mushrooms[0];
+    const eaten = idx(g, m.x + 3, m.y);
+    g.mycelium[eaten] = 0;
+    expect(changedChunks(before, signatures(networkLayout(g)), g.w).has(chunkOf(eaten, g.w))).toBe(true);
   });
 });

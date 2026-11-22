@@ -23,19 +23,34 @@ export const ROT_PER_SECOND = 1.5;
 
 // Beetles.
 export const FIRST_BEETLE_AT = 25; // seconds
-export const BEETLE_INTERVAL_START = 12;
-export const BEETLE_INTERVAL_MIN = 3.5;
+export const BEETLE_INTERVAL_START = 8;
+export const BEETLE_INTERVAL_MIN = 2.5;
 export const BEETLE_SPEED = 1.1; // tiles per second
-export const BEETLE_HP = 3;
+export const BEETLE_HP = 4;
 export const BEETLE_EAT_TIME = 1.5; // seconds to eat one tile of mycelium
-export const BEETLE_NUTRIENTS = 5; // dropped when a beetle is defeated
-export const BEETLE_APPETITE = 3; // tiles a beetle eats before it is full and leaves
-export const MAX_BEETLES = 15; // on the map at once
+export const BEETLE_NUTRIENTS = 3; // dropped when a beetle is defeated
+export const BEETLE_APPETITE = 4; // tiles a beetle eats before it is full and leaves
+export const MAX_BEETLES = 24; // on the map at once
+
+// Beetles get to be a real threat: they come in small swarms, some go for mushrooms or the mother,
+// and they grow tougher as the round goes on.
+export const SWARM_MAX = 4; // beetles arriving together, at most
+export const AIM_MUSHROOM = 0.3; // share of beetles that go for a mushroom...
+export const AIM_MOTHER = 0.12; // ...and that head straight for the mother
+export const AIM_MOTHER_FROM = 60; // seconds into a round before any beetle goes for the mother
+export const MUSHROOM_EAT_FACTOR = 3; // a mushroom's tile takes this many times as long to eat...
+export const MOTHER_EAT_FACTOR = 5; // ...and the mother's, giving the player time to answer
+export const TOUGHER_EVERY = 60; // seconds; each one adds to a new beetle's health and speed
+export const TOUGHER_HP = 1;
+export const TOUGHER_SPEED = 0.08;
+export const TOUGHER_MAX = 3; // steps at most (+3 health, +24% speed)
+export const HUNGRIER_EVERY = 90; // seconds; each one adds a tile to what a new beetle eats
+export const HUNGRIER_MAX = 3;
 
 // Mushrooms puff spores at beetles that come close.
 export const PUFF_RANGE = 2.2; // tiles
 export const PUFF_DAMAGE = 1;
-export const PUFF_INTERVAL = 2;
+export const PUFF_INTERVAL = 3;
 
 // Clicking a mushroom bursts it: a big spore cloud with a cooldown.
 export const BURST_RANGE = 3.5;

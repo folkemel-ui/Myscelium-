@@ -217,3 +217,24 @@ class MinHeap {
     return top;
   }
 }
+
+// --- Chunks: the settled network is drawn in squares of CHUNK×CHUNK tiles, so that a change
+// only redraws the squares where something looks different. ---
+
+export const CHUNK = 8;
+
+export const chunkOf = (tile: number, w: number) =>
+  Math.floor((tile % w) / CHUNK) + Math.floor(Math.floor(tile / w) / CHUNK) * Math.ceil(w / CHUNK);
+
+// Everything about a node that decides how it is drawn (its position follows from its tile and
+// its parent).
+export const nodeSignature = (n: NetNode) =>
+  `${n.parent}|${Math.round(n.width * 2)}|${n.color}|${n.parent < 0 ? 'r' : n.children.length >= 2 ? 'k' : ''}|${n.hairs.length}`;
+
+// The chunks where a node appeared, went, or looks different.
+export function changedChunks(before: Map<number, string>, after: Map<number, string>, w: number) {
+  const dirty = new Set<number>();
+  for (const [tile, sig] of after) if (before.get(tile) !== sig) dirty.add(chunkOf(tile, w));
+  for (const tile of before.keys()) if (!after.has(tile)) dirty.add(chunkOf(tile, w));
+  return dirty;
+}

@@ -164,7 +164,28 @@ function creep(g: Game, dt: number) {
   }
 }
 
-// Beetles come in from the edges, more often the more of the forest you hold.
+// Beetles come in from the edges, more often the more of the forest you hold, in small swarms
+// that grow with the spread and the time; later beetles are tougher, faster and hungrier.
+export function swarmSize(g: Game) {
+  const share = Math.min(1, coverage(g) / C.WIN_COVERAGE);
+  const most = Math.min(C.SWARM_MAX, 1 + 2 * share + g.time / 120);
+  return Math.max(1, Math.min(C.SWARM_MAX, 1 + Math.floor(g.rng() * most)));
+}
+
+export function newBeetle(g: Game, x: number, y: number): Beetle {
+  const tough = Math.min(C.TOUGHER_MAX, Math.floor(g.time / C.TOUGHER_EVERY));
+  const r = g.rng();
+  const motherOk = g.time >= C.AIM_MOTHER_FROM; // none go for the mother in the first minute
+  const aim = r < C.AIM_MOTHER ? (motherOk ? 'mother' : 'mushroom') : r < C.AIM_MOTHER + C.AIM_MUSHROOM ? 'mushroom' : 'any';
+  const hp = C.BEETLE_HP + tough * C.TOUGHER_HP;
+  return {
+    id: g.nextId++, x, y, hp, maxHp: hp, target: -1, eatTimer: 0, retarget: 0, ate: 0, aim,
+    speed: C.BEETLE_SPEED * (1 + tough * C.TOUGHER_SPEED),
+    appetite: C.BEETLE_APPETITE + Math.min(C.HUNGRIER_MAX, Math.floor(g.time / C.HUNGRIER_EVERY)),
+    born: g.time,
+  };
+}
+
 function spawnBeetles(g: Game) {
   if (g.time < C.FIRST_BEETLE_AT || g.time < g.nextBeetle || g.beetles.length >= C.MAX_BEETLES) return;
   const share = Math.min(1, coverage(g) / C.WIN_COVERAGE);
@@ -174,7 +195,50 @@ function spawnBeetles(g: Game) {
   const along = g.rng();
   const x = side === 0 ? -0.5 : side === 1 ? g.w + 0.5 : along * g.w;
   const y = side === 2 ? -0.5 : side === 3 ? g.h + 0.5 : along * g.h;
-  g.beetles.push({ id: g.nextId++, x, y, hp: C.BEETLE_HP, target: -1, eatTimer: 0, retarget: 0, ate: 0 });
+  const n = Math.min(swarmSize(g), C.MAX_BEETLES - g.beetles.length);
+  for (let k = 0; k < n; k++) {
+    // A swarm arrives bunched up along the edge.
+    const off = (k - (n - 1) / 2) * 0.9;
+    g.beetles.push(newBeetle(g, side < 2 ? x : x + off, side < 2 ? y + off : y));
+  }
+}
+
+// What a beetle goes for: the mother, the nearest mushroom, or the nearest mycelium.
+function pickTarget(g: Game, b: Beetle): number {
+  const mother = g.mushrooms.find((m) => m.mother);
+  if (b.aim === 'mother' && mother && g.mycelium[idx(g, mother.x, mother.y)]) return idx(g, mother.x, mother.y);
+  if (b.aim === 'mushroom') {
+    let best = -1;
+    let bestD = Infinity;
+    for (const m of g.mushrooms) {
+      if (m.mother || !g.mycelium[idx(g, m.x, m.y)]) continue;
+      const d = (m.x + 0.5 - b.x) ** 2 + (m.y + 0.5 - b.y) ** 2;
+      if (d < bestD) {
+        bestD = d;
+        best = idx(g, m.x, m.y);
+      }
+    }
+    if (best >= 0) return best;
+  }
+  return nearestMycelium(g, b);
+}
+
+// The mushrooms being eaten right now, and how far along (0..1) the beetle is.
+export function underAttack(g: Game): { mushroom: Mushroom; progress: number }[] {
+  const out: { mushroom: Mushroom; progress: number }[] = [];
+  for (const m of g.mushrooms) {
+    const tile = idx(g, m.x, m.y);
+    let most = 0;
+    for (const b of g.beetles) if (b.target === tile && b.eatTimer > 0) most = Math.max(most, b.eatTimer / eatTimeFor(g, tile));
+    if (most > 0) out.push({ mushroom: m, progress: Math.min(1, most) });
+  }
+  return out;
+}
+
+// How long a tile takes to eat: mushrooms, and the mother most of all, hold out longer.
+export function eatTimeFor(g: Game, tile: number) {
+  const m = g.mushrooms.find((v) => idx(g, v.x, v.y) === tile);
+  return g.mods.eatTime * (!m ? 1 : m.mother ? C.MOTHER_EAT_FACTOR : C.MUSHROOM_EAT_FACTOR);
 }
 
 function nearestMycelium(g: Game, b: Beetle): number {
@@ -192,12 +256,13 @@ function nearestMycelium(g: Game, b: Beetle): number {
   return best;
 }
 
-// Walk to the nearest mycelium (crawling over anything in the way) and eat it.
+// Walk to what it goes for (crawling over anything in the way) and eat it.
 function moveBeetle(g: Game, b: Beetle, dt: number) {
-  if (b.ate >= C.BEETLE_APPETITE) return leave(g, b, dt);
+  if (b.ate >= (b.appetite ?? C.BEETLE_APPETITE)) return leave(g, b, dt);
   b.retarget -= dt;
-  if (b.target < 0 || !g.mycelium[b.target] || (b.retarget <= 0 && b.eatTimer === 0)) {
-    b.target = nearestMycelium(g, b);
+  const keen = b.aim === 'mother' || b.aim === 'mushroom'; // these don't get distracted on the way
+  if (b.target < 0 || !g.mycelium[b.target] || (!keen && b.retarget <= 0 && b.eatTimer === 0)) {
+    b.target = pickTarget(g, b);
     b.retarget = 2;
     b.eatTimer = 0;
   }
@@ -206,13 +271,13 @@ function moveBeetle(g: Game, b: Beetle, dt: number) {
   const ty = Math.floor(b.target / g.w) + 0.5;
   const d = Math.hypot(tx - b.x, ty - b.y);
   if (d > 0.15) {
-    const move = Math.min(d, C.BEETLE_SPEED * dt);
+    const move = Math.min(d, (b.speed ?? C.BEETLE_SPEED) * dt);
     b.x += ((tx - b.x) / d) * move;
     b.y += ((ty - b.y) / d) * move;
     return;
   }
   b.eatTimer += dt;
-  if (b.eatTimer >= g.mods.eatTime) {
+  if (b.eatTimer >= eatTimeFor(g, b.target)) {
     removeMycelium(g, b.target);
     b.ate++;
     b.target = -1;
@@ -225,8 +290,8 @@ function leave(g: Game, b: Beetle, dt: number) {
   const exits = [[b.x, -2], [b.x, g.h + 2], [-2, b.y], [g.w + 2, b.y]];
   const [tx, ty] = exits.reduce((a, e) => (Math.hypot(e[0] - b.x, e[1] - b.y) < Math.hypot(a[0] - b.x, a[1] - b.y) ? e : a));
   const d = Math.hypot(tx - b.x, ty - b.y);
-  b.x += ((tx - b.x) / d) * C.BEETLE_SPEED * dt;
-  b.y += ((ty - b.y) / d) * C.BEETLE_SPEED * dt;
+  b.x += ((tx - b.x) / d) * (b.speed ?? C.BEETLE_SPEED) * dt;
+  b.y += ((ty - b.y) / d) * (b.speed ?? C.BEETLE_SPEED) * dt;
 }
 
 function mushroomsPuff(g: Game, dt: number) {

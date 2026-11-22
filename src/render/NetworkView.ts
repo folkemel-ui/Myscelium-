@@ -7,7 +7,9 @@
 import { Container, Graphics } from 'pixi.js';
 import type { Game } from '../game/world';
 import { TS } from './forestLayout';
-import { networkLayout, pathFromRoot, pointOnThread, type NetNode, type NetworkLayout } from './networkLayout';
+import {
+  changedChunks, chunkOf, networkLayout, nodeSignature, pathFromRoot, pointOnThread, type NetNode, type NetworkLayout,
+} from './networkLayout';
 
 export const GROW_TIME = 0.5; // seconds for a new thread to creep into place
 export const WITHER_TIME = 0.9; // seconds for an eaten thread to wither away
@@ -45,8 +47,13 @@ export class NetworkView {
   // Glow goes under the threads and adds light to what's below.
   readonly glowLayer = new Container();
   readonly threadLayer = new Container();
-  private settledGlow = new Graphics();
-  private settledThreads = new Graphics();
+  // The settled network, in chunks of CHUNK×CHUNK tiles: only chunks where something looks
+  // different are redrawn (redrawing all of it took 7.5 ms on a half-covered map).
+  private settledGlow = new Container();
+  private settledThreads = new Container();
+  private chunks = new Map<number, { glow: Graphics; threads: Graphics }>();
+  private drawn = new Map<number, string>(); // tile -> signature, as the settled network was last drawn
+  private mapWidth = 0;
   private liveGlow = new Graphics();
   private liveThreads = new Graphics();
   private layout: NetworkLayout | null = null;
@@ -67,6 +74,12 @@ export class NetworkView {
   }
 
   reset() {
+    for (const c of this.chunks.values()) {
+      c.glow.destroy();
+      c.threads.destroy();
+    }
+    this.chunks.clear();
+    this.drawn.clear();
     this.layout = null;
     this.seen = null;
     this.version = -1;
@@ -106,6 +119,7 @@ export class NetworkView {
     const old = this.layout;
     this.layout = networkLayout(g);
     this.version = g.version;
+    this.mapWidth = g.w;
     this.settledDirty = true;
     const seen = this.seen;
     this.seen = g.mycelium.slice();
@@ -127,15 +141,39 @@ export class NetworkView {
 
   private drawSettled() {
     const layout = this.layout;
-    const glow = this.settledGlow.clear();
-    const threads = this.settledThreads.clear();
     if (!layout) return;
-    // Threads of the same colour and (rounded) thickness are drawn as one path with one stroke:
-    // stroking each of ~600 threads 3-4 times on its own took 17 ms on a half-covered map.
+    const w = this.mapWidth;
+    const now = new Map<number, string>();
+    for (const n of layout.nodes.values()) if (!this.born.has(n.tile)) now.set(n.tile, nodeSignature(n)); // growing ones are live
+    const dirty = changedChunks(this.drawn, now, w);
+    this.drawn = now;
+    if (dirty.size === 0) return;
+    const byChunk = new Map<number, NetNode[]>();
+    for (const tile of now.keys()) {
+      const c = chunkOf(tile, w);
+      if (!dirty.has(c)) continue;
+      if (!byChunk.has(c)) byChunk.set(c, []);
+      byChunk.get(c)!.push(layout.nodes.get(tile)!);
+    }
+    for (const c of dirty) {
+      let gfx = this.chunks.get(c);
+      if (!gfx) {
+        gfx = { glow: new Graphics(), threads: new Graphics() };
+        gfx.glow.blendMode = 'add';
+        this.settledGlow.addChild(gfx.glow);
+        this.settledThreads.addChild(gfx.threads);
+        this.chunks.set(c, gfx);
+      }
+      this.drawNodes(gfx.glow.clear(), gfx.threads.clear(), byChunk.get(c) ?? [], layout);
+    }
+  }
+
+  // Threads of the same colour and (rounded) thickness are drawn as one path with one stroke:
+  // stroking each of ~600 threads 3-4 times on its own took 17 ms on a half-covered map.
+  private drawNodes(glow: Graphics, threads: Graphics, nodes: NetNode[], layout: NetworkLayout) {
     const groups = new Map<string, { color: number; width: number; nodes: NetNode[] }>();
     const hairs = new Map<number, NetNode[]>();
-    for (const n of layout.nodes.values()) {
-      if (this.born.has(n.tile)) continue; // still growing: drawn on the live layer
+    for (const n of nodes) {
       const color = n.color;
       if (n.parent >= 0) {
         const width = Math.round(n.width * 2) / 2;
@@ -148,9 +186,9 @@ export class NetworkView {
         hairs.get(color)!.push(n);
       }
     }
-    for (const { color, width, nodes } of groups.values()) {
+    for (const { color, width, nodes: group } of groups.values()) {
       const path = (gr: Graphics) => {
-        for (const n of nodes) {
+        for (const n of group) {
           const p = layout.nodes.get(n.parent)!;
           gr.moveTo(p.x, p.y).quadraticCurveTo(n.cx, n.cy, n.x, n.y);
         }
@@ -164,13 +202,11 @@ export class NetworkView {
       path(threads).stroke({ width, color, alpha: 0.92, cap: 'round' });
       if (width > 2) path(threads).stroke({ width: width * 0.35, color: 0xffffff, alpha: 0.3, cap: 'round' });
     }
-    for (const [color, nodes] of hairs) {
-      for (const n of nodes) this.hairPaths(threads, n, 1);
+    for (const [color, group] of hairs) {
+      for (const n of group) this.hairPaths(threads, n, 1);
       threads.stroke({ width: 0.7, color: mix(color, 0xffffff, 0.5), alpha: 0.45 });
     }
-    for (const n of layout.nodes.values()) {
-      if (!this.born.has(n.tile)) this.drawKnot(threads, glow, n, n.color);
-    }
+    for (const n of nodes) this.drawKnot(threads, glow, n, n.color);
   }
 
   // Fine hairs reaching into open ground, added to the current path (the caller strokes them).

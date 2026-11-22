@@ -3,7 +3,7 @@ import { MUSHROOM_COST, WIN_COVERAGE } from '../game/constants';
 import {
   buyUpgrade, finishRound, modsFor, totalXp, xpToNext, type Profile, type UpgradeId, type XpLine,
 } from '../game/progress';
-import { coverage, sporesPerSecond, step } from '../game/sim';
+import { coverage, sporesPerSecond, step, underAttack } from '../game/sim';
 import { createLevel1, type Game, type Mods, type RoundStats } from '../game/world';
 import { GameView, type Tool } from '../render/GameView';
 import {
@@ -30,6 +30,7 @@ interface Snapshot {
   stats: RoundStats;
   history: Game['history'] | null; // only once the round is over, for the chart
   growCost: number;
+  motherAttacked: boolean;
 }
 
 const snapshot = (g: Game): Snapshot => ({
@@ -44,6 +45,7 @@ const snapshot = (g: Game): Snapshot => ({
   stats: { ...g.stats },
   history: g.status === 'playing' ? null : g.history.slice(),
   growCost: g.mods.growCost,
+  motherAttacked: underAttack(g).some((a) => a.mushroom.mother),
 });
 
 const TOOLS: { tool: Tool; key: string; name: string; cost: (s: Snapshot) => string }[] = [
@@ -137,8 +139,9 @@ export function App() {
       else {
         view.current = v;
         v.topSpace = topSpace.current;
+        // In development, the live view is on window.view (not one thrown away by React starting twice).
+        if (import.meta.env.DEV) (window as unknown as { view: GameView }).view = v;
       }
-      if (import.meta.env.DEV) (window as unknown as { view: GameView }).view = v;
     });
     return () => {
       disposed = true;
@@ -416,6 +419,9 @@ export function App() {
       </header>
       {screen === 'game' && <p className="hint">Drag to grow mycelium · click a mushroom to burst it · H for help</p>}
       {message && <div className="toast" key={message.id}>{message.text}</div>}
+      {snap.motherAttacked && screen === 'game' && snap.status === 'playing' && (
+        <div className="mother-alarm" role="alert">The mother is being eaten! Burst her (click or B)</div>
+      )}
       {stageBanner && screen === 'game' && snap.status === 'playing' && (
         <div className="stage-banner" key={stageBanner.id} role="status">
           <small>Stage {stageBanner.stage}</small>

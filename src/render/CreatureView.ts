@@ -8,6 +8,7 @@
 import { Container, Graphics, Sprite, Texture } from 'pixi.js';
 import { DOT_SIZE, dotTexture } from './textures';
 import { BEETLE_HP, BURST_COOLDOWN } from '../game/constants';
+import { underAttack } from '../game/sim';
 import type { Game, Mushroom, Puff } from '../game/world';
 import {
   flip, FLASH_TIME, legSwing, moveParticle, sparkleAt, SPARKLE_TIME, sporeBurst, sproutScale, squashScale,
@@ -18,6 +19,7 @@ import { GLOW, glowAt, hash, TS } from './forestLayout';
 const SMALL_SPORES = [0xd8ff7a, 0xeaffb0, 0xb6ff4f];
 const SPARKLES = [0xffe066, 0xd8ff6a, 0xfff3b0];
 const MAX_PARTICLES = 900;
+const ARRIVAL_WARNING = 2.5; // seconds an arrow shows where beetles came in
 
 type Point = { x: number; y: number };
 
@@ -50,6 +52,7 @@ export class CreatureView {
   readonly mushroomLayer = new Container();
   readonly spores = new Container();
   readonly beetleLayer = new Container();
+  readonly danger = new Graphics(); // arrows where beetles come in, rings on what is being eaten
   readonly sparkles = new Graphics(); // on the screen, above the forest and its colour filter
   private shrooms = new Map<number, { shape: Graphics; halo: Sprite; born: number; burst: number }>();
   private seenPuffs = new WeakSet<Puff>();
@@ -85,6 +88,7 @@ export class CreatureView {
   }
 
   update(g: Game, clock: number, dt: number, share: number, hooks: CreatureHooks) {
+    this.drawDanger(g, clock);
     this.updateMushrooms(g, clock, share);
     this.updatePuffs(g, clock, dt);
     this.updateBeetles(g, clock, hooks);
@@ -142,6 +146,38 @@ export class CreatureView {
         under.moveTo(cx, cy - r).arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + done * Math.PI * 2)
           .stroke({ width: 2, color: 0xffffff, alpha: 0.55 });
       }
+    }
+  }
+
+  // --- Danger ---
+
+  // Arrows at the edge where beetles have just come in (for ARRIVAL_WARNING seconds), and a red,
+  // pulsing glow with a ring filling up round any mushroom being eaten.
+  private drawDanger(g: Game, clock: number) {
+    const d = this.danger.clear();
+    const W = g.w * TS;
+    const H = g.h * TS;
+    const blink = 0.55 + 0.45 * Math.sin(clock * 9);
+    for (const b of g.beetles) {
+      const age = g.time - (b.born ?? -99);
+      if (age < 0 || age > ARRIVAL_WARNING) continue;
+      // The arrow sits just inside the map's edge, pointing in.
+      const x = Math.min(W - 10, Math.max(10, b.x * TS));
+      const y = Math.min(H - 10, Math.max(10, b.y * TS));
+      const [nx, ny] = b.x < 0.5 ? [1, 0] : b.x > g.w - 0.5 ? [-1, 0] : b.y < 0.5 ? [0, 1] : [0, -1];
+      const fade = 1 - age / ARRIVAL_WARNING;
+      const s = 12;
+      d.moveTo(x + nx * s, y + ny * s).lineTo(x - ny * s * 0.8, y + nx * s * 0.8).lineTo(x + ny * s * 0.8, y - nx * s * 0.8).closePath()
+        .fill({ color: 0xff4a3d, alpha: 0.85 * fade * blink });
+    }
+    for (const { mushroom: m, progress } of underAttack(g)) {
+      const cx = (m.x + 0.5) * TS;
+      const cy = (m.y + 0.5) * TS;
+      const r = m.mother ? 22 : 15;
+      d.circle(cx, cy, r + 6 * blink).fill({ color: 0xff2a2a, alpha: 0.18 + 0.14 * blink });
+      d.circle(cx, cy, r).stroke({ width: 2, color: 0xff6a5a, alpha: 0.4 });
+      d.moveTo(cx, cy - r).arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2)
+        .stroke({ width: 3.5, color: 0xff3b2f, alpha: 0.95 });
     }
   }
 
@@ -218,7 +254,9 @@ export class CreatureView {
       const jaw = b.eatTimer > 0 ? 0.45 + 0.4 * Math.sin(clock * 22) : 0.15;
       drawLimbs(bug.parts.limbs, { walk: bug.walk, jaw, belly: false, clock });
       bug.parts.flash.alpha = 0.85 * flash;
-      setCracks(bug.parts, b.hp / BEETLE_HP);
+      setCracks(bug.parts, b.hp / (b.maxHp ?? BEETLE_HP));
+      // Tougher (later) beetles are a little bigger.
+      bug.root.scale.set(1 + 0.07 * ((b.maxHp ?? BEETLE_HP) - BEETLE_HP));
       // A hit knocks it back a touch.
       const knock = flash * 1.5;
       bug.root.position.set(x - Math.cos(bug.angle) * knock, y - Math.sin(bug.angle) * knock);
