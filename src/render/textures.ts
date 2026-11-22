@@ -1,7 +1,6 @@
-// Small textures drawn once on a canvas and shared: a soft dot (spores, specks), a soft band (the
-// colour wave) and a kaleidoscope tile (the edges at stage 3).
+// Small textures drawn once on a canvas and shared: a soft dot (spores, specks, glows) and a soft
+// band (the colour wave).
 import { Texture } from 'pixi.js';
-import { GLOW } from './forestLayout';
 
 export const DOT_SIZE = 32; // the soft dot's size in pixels; a dot of radius r is drawn at r * 2 / DOT_SIZE
 
@@ -40,37 +39,3 @@ export const bandTexture = () =>
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, 128, 4);
   }, 128, 4);
-
-// A square of triangles in the glow colours, mirrored both ways like a kaleidoscope, so it tiles
-// without seams.
-export const kaleidoTexture = () =>
-  once('kaleido', (ctx) => {
-    const S = 64;
-    const h = S / 2;
-    const hex = (c: number) => `#${c.toString(16).padStart(6, '0')}`;
-    const quarter = () => {
-      const tris: [number, number, number, number, number, number, number][] = [
-        [0, 0, h, 0, 0, h, 0], [h, 0, h, h, 0, h, 1], [0, 0, h * 0.5, h * 0.5, 0, h, 2],
-        [h, 0, h * 0.5, h * 0.5, h, h, 3], [h * 0.25, h * 0.75, h * 0.5, h * 0.5, h * 0.75, h * 0.75, 4],
-      ];
-      for (const [x1, y1, x2, y2, x3, y3, c] of tris) {
-        ctx.fillStyle = hex(GLOW[c % GLOW.length]);
-        ctx.globalAlpha = 0.55 + 0.1 * c;
-        ctx.beginPath();
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
-        ctx.lineTo(x3, y3);
-        ctx.closePath();
-        ctx.fill();
-      }
-      ctx.globalAlpha = 1;
-    };
-    for (const [sx, sy] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) {
-      ctx.save();
-      ctx.translate(h, h);
-      ctx.scale(sx, sy);
-      ctx.translate(-h, -h);
-      quarter();
-      ctx.restore();
-    }
-  }, 64, 64);

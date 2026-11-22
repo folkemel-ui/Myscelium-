@@ -6,7 +6,7 @@
 // growing or withering, and the pulses, are drawn every frame on a separate "live" layer.
 import { Container, Graphics } from 'pixi.js';
 import type { Game } from '../game/world';
-import { glowAt, TS } from './forestLayout';
+import { TS } from './forestLayout';
 import { networkLayout, pathFromRoot, pointOnThread, type NetNode, type NetworkLayout } from './networkLayout';
 
 export const GROW_TIME = 0.5; // seconds for a new thread to creep into place
@@ -17,6 +17,7 @@ const PULSE_EVERY_ALIVE = 0.12; // ...and at the goal
 const MAX_PULSES = 40;
 const SETTLE_EVERY = 0.6; // at most this often, redraw the settled threads while others grow
 const WITHERED = 0x5a4a35;
+const GLOW_FROM = 1.5; // threads thinner than this (px) get no glow
 
 interface Withering {
   from: { x: number; y: number } | null;
@@ -88,13 +89,13 @@ export class NetworkView {
     const growing = this.born.size - finished;
     if ((this.settledDirty || finished > 0) && (growing === 0 || clock - this.lastSettled > SETTLE_EVERY)) {
       for (const [tile, start] of this.born) if (clock - start >= GROW_TIME) this.born.delete(tile);
-      this.drawSettled(g);
+      this.drawSettled();
       this.settledDirty = false;
       this.lastSettled = clock;
     }
     this.withering = this.withering.filter((w) => clock - w.start < WITHER_TIME);
     this.movePulses(dt, share);
-    this.drawLive(g, clock);
+    this.drawLive(clock);
     // The glow breathes, and grows stronger as the forest comes alive.
     const s = Math.min(1, share);
     this.glowLayer.alpha = (0.35 + 0.65 * s) * (0.85 + 0.15 * Math.sin(clock * (1.5 + s * 2)));
@@ -118,13 +119,13 @@ export class NetworkView {
         const p = old.nodes.get(n.parent);
         this.withering.push({
           from: p ? { x: p.x, y: p.y } : null,
-          cx: n.cx, cy: n.cy, x: n.x, y: n.y, width: n.width, color: glowAt(g.noise[i]), start: clock,
+          cx: n.cx, cy: n.cy, x: n.x, y: n.y, width: n.width, color: n.color, start: clock,
         });
       }
     }
   }
 
-  private drawSettled(g: Game) {
+  private drawSettled() {
     const layout = this.layout;
     const glow = this.settledGlow.clear();
     const threads = this.settledThreads.clear();
@@ -135,7 +136,7 @@ export class NetworkView {
     const hairs = new Map<number, NetNode[]>();
     for (const n of layout.nodes.values()) {
       if (this.born.has(n.tile)) continue; // still growing: drawn on the live layer
-      const color = glowAt(g.noise[n.tile]);
+      const color = n.color;
       if (n.parent >= 0) {
         const width = Math.round(n.width * 2) / 2;
         const key = `${color}:${width}`;
@@ -155,8 +156,11 @@ export class NetworkView {
         }
         return gr;
       };
-      path(glow).stroke({ width: width + 7, color, alpha: 0.07, cap: 'round' });
-      path(glow).stroke({ width: width + 2.5, color, alpha: 0.14, cap: 'round' });
+      // Only threads that carry a good part of the network glow; the fine tips stay fine.
+      if (width >= GLOW_FROM) {
+        path(glow).stroke({ width: width + 7, color, alpha: 0.07, cap: 'round' });
+        path(glow).stroke({ width: width + 2.5, color, alpha: 0.14, cap: 'round' });
+      }
       path(threads).stroke({ width, color, alpha: 0.92, cap: 'round' });
       if (width > 2) path(threads).stroke({ width: width * 0.35, color: 0xffffff, alpha: 0.3, cap: 'round' });
     }
@@ -165,7 +169,7 @@ export class NetworkView {
       threads.stroke({ width: 0.7, color: mix(color, 0xffffff, 0.5), alpha: 0.45 });
     }
     for (const n of layout.nodes.values()) {
-      if (!this.born.has(n.tile)) this.drawKnot(threads, glow, n, glowAt(g.noise[n.tile]));
+      if (!this.born.has(n.tile)) this.drawKnot(threads, glow, n, n.color);
     }
   }
 
@@ -191,7 +195,7 @@ export class NetworkView {
     }
   }
 
-  private drawLive(g: Game, clock: number) {
+  private drawLive(clock: number) {
     const glow = this.liveGlow.clear();
     const threads = this.liveThreads.clear();
     const layout = this.layout;
@@ -203,7 +207,7 @@ export class NetworkView {
       if (!n) continue;
       const grown = Math.min(1, (clock - start) / GROW_TIME);
       const ease = 1 - (1 - grown) ** 2;
-      const color = glowAt(g.noise[tile]);
+      const color = n.color;
       if (n.parent >= 0) {
         const pts: { x: number; y: number }[] = [];
         for (let k = 0; k <= 8; k++) pts.push(pointOnThread(layout, n, (ease * k) / 8));
@@ -243,10 +247,22 @@ export class NetworkView {
     for (const p of this.pulses) {
       const n = layout.nodes.get(p.path[p.k])!;
       const at = pointOnThread(layout, n, p.s);
-      const color = glowAt(g.noise[n.tile]);
+      const color = n.color;
       glow.circle(at.x, at.y, 6).fill({ color, alpha: 0.35 });
       glow.circle(at.x, at.y, 3).fill({ color: 0xffffff, alpha: 0.35 });
       threads.circle(at.x, at.y, 1.7).fill({ color: 0xffffff, alpha: 0.95 });
+    }
+  }
+
+  // A heartbeat: several pulses leave the mother at once, for different tips.
+  heartbeat(count: number) {
+    const layout = this.layout;
+    if (!layout || layout.leaves.length === 0) return;
+    for (let k = 0, tries = 0; k < count && tries < count * 4 && this.pulses.length < MAX_PULSES + 12; tries++) {
+      const path = pathFromRoot(layout, layout.leaves[Math.floor(Math.random() * layout.leaves.length)]);
+      if (path.length < 4) continue;
+      this.pulses.push({ path, k: 1, s: 0 });
+      k++;
     }
   }
 

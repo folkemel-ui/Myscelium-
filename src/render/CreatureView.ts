@@ -46,11 +46,12 @@ interface Bug {
 
 export class CreatureView {
   readonly under = new Graphics(); // auras, cooldown rings and cloud rings, under the mushrooms
+  readonly halos = new Container(); // a soft glow under each mushroom, in its colour
   readonly mushroomLayer = new Container();
   readonly spores = new Container();
   readonly beetleLayer = new Container();
   readonly sparkles = new Graphics(); // on the screen, above the forest and its colour filter
-  private shrooms = new Map<number, { shape: Graphics; born: number; burst: number }>();
+  private shrooms = new Map<number, { shape: Graphics; halo: Sprite; born: number; burst: number }>();
   private seenPuffs = new WeakSet<Puff>();
   private particles: Particle[] = [];
   private sporeSprites: Sprite[] = [];
@@ -62,13 +63,14 @@ export class CreatureView {
   private fresh = true; // the first look at a game: what's there already doesn't sprout
 
   constructor() {
+    this.halos.blendMode = 'add';
     this.mushroomLayer.sortableChildren = true;
     this.spores.blendMode = 'add';
     this.sparkles.blendMode = 'add';
   }
 
   reset() {
-    for (const layer of [this.mushroomLayer, this.beetleLayer]) for (const c of layer.removeChildren()) c.destroy({ children: true });
+    for (const layer of [this.halos, this.mushroomLayer, this.beetleLayer]) for (const c of layer.removeChildren()) c.destroy({ children: true });
     this.shrooms.clear();
     this.bugs.clear();
     this.corpses = [];
@@ -82,8 +84,8 @@ export class CreatureView {
     return this.particles.length;
   }
 
-  update(g: Game, clock: number, dt: number, hooks: CreatureHooks) {
-    this.updateMushrooms(g, clock);
+  update(g: Game, clock: number, dt: number, share: number, hooks: CreatureHooks) {
+    this.updateMushrooms(g, clock, share);
     this.updatePuffs(g, clock, dt);
     this.updateBeetles(g, clock, hooks);
     this.updateCorpses(clock);
@@ -93,16 +95,25 @@ export class CreatureView {
 
   // --- Mushrooms ---
 
-  private updateMushrooms(g: Game, clock: number) {
+  private updateMushrooms(g: Game, clock: number, share: number) {
     const alive = new Set<number>();
     for (const m of g.mushrooms) {
       alive.add(m.id);
       let s = this.shrooms.get(m.id);
       if (!s) {
-        s = { shape: mushroomShape(g, m), born: this.fresh ? -Infinity : clock, burst: -Infinity };
+        const halo = new Sprite(dotTexture());
+        halo.anchor.set(0.5);
+        halo.tint = m.mother ? 0xff3d7f : glowAt(g.noise[m.y * g.w + m.x]);
+        this.halos.addChild(halo);
+        s = { shape: mushroomShape(g, m), halo, born: this.fresh ? -Infinity : clock, burst: -Infinity };
         this.shrooms.set(m.id, s);
         this.mushroomLayer.addChild(s.shape);
       }
+      // The glow grows with the trip, and breathes.
+      const big = (m.mother ? 2.2 : 1.4) * TS * 2;
+      s.halo.position.set((m.x + 0.5) * TS, (m.y + 0.5) * TS);
+      s.halo.width = s.halo.height = big * Math.min(1, sproutScale(clock - s.born).sy || 0);
+      s.halo.alpha = (0.2 + 0.45 * Math.min(1, share)) * (0.85 + 0.15 * Math.sin(clock * 2 + m.id));
       const sprout = sproutScale(clock - s.born);
       const squash = squashScale(clock - s.burst);
       s.shape.scale.set(sprout.sx * squash.sx, sprout.sy * squash.sy);
@@ -113,6 +124,7 @@ export class CreatureView {
     for (const [id, s] of this.shrooms) {
       if (alive.has(id)) continue;
       s.shape.destroy();
+      s.halo.destroy();
       this.shrooms.delete(id);
     }
 

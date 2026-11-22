@@ -5,8 +5,8 @@
 // Four stages, each switching on new effects, reached at 25%, 50%, 75% and 100% of the goal.
 export const STAGES = [
   { at: 0.25, name: 'The forest stirs', adds: 'shimmer' },
-  { at: 0.5, name: 'Colours awaken', adds: 'ripples' },
-  { at: 0.75, name: 'Everything breathes', adds: 'kaleidoscope edges' },
+  { at: 0.5, name: 'Colours awaken', adds: 'heartbeats of light' },
+  { at: 0.75, name: 'Everything breathes', adds: 'colour at the edges' },
   { at: 1, name: 'The forest dreams', adds: 'all at full strength' },
 ] as const;
 
@@ -27,10 +27,22 @@ export function stageStrength(share: number, stage: number) {
 
 export const MAX_HUE = 28; // degrees the colours drift either way at the goal
 
-// The slow drift of every colour round the colour wheel, in degrees, growing with the spread.
+// The slow drift of the threads' colours round the colour wheel, in degrees, growing with the
+// spread. Only what glows drifts; the forest itself stays put.
 export function hueShift(clock: number, share: number) {
   const s = Math.min(1, Math.max(0, share));
   return (Math.sin(clock * 0.13) * 0.7 + Math.sin(clock * 0.31 + 1.7) * 0.3) * MAX_HUE * s * s;
+}
+
+// "Black light": as the trip deepens, the forest itself (floor, logs, trees) darkens towards deep
+// indigo, so that what glows (threads, mushrooms, specks) stands out against it. Returns how far,
+// 0..BLACK_LIGHT_MAX, and the tint to multiply the forest by.
+export const NIGHT = 0x2e2466;
+export const BLACK_LIGHT_MAX = 0.7;
+export function blackLight(share: number) {
+  const d = Math.min(1, Math.max(0, (share - 0.1) / 0.9)) * BLACK_LIGHT_MAX;
+  const ch = (s: number) => Math.round(255 * (1 - d) + ((NIGHT >> s) & 255) * d);
+  return { amount: d, tint: (ch(16) << 16) | (ch(8) << 8) | ch(0) };
 }
 
 // Glowing specks floating over the territory: a few at first, many near the goal.
@@ -48,16 +60,18 @@ export function stageWave(t: number) {
   return { reach: 1 - (1 - u) ** 2, bright: (1 - u) ** 1.5, flash: Math.max(0, 1 - t / 0.5) };
 }
 
-// Ripples (from stage 2): a ring leaves the mother every RIPPLE_EVERY seconds and spreads for
-// RIPPLE_LIFE seconds. Returns the rings alive at time t as 0..1 of their life.
-export const RIPPLE_EVERY = 2.4;
-export const RIPPLE_LIFE = 5;
-export function ripplesAt(t: number) {
-  const out: number[] = [];
-  const newest = Math.floor(t / RIPPLE_EVERY);
-  for (let k = newest; k >= 0 && t - k * RIPPLE_EVERY < RIPPLE_LIFE; k--) out.push((t - k * RIPPLE_EVERY) / RIPPLE_LIFE);
-  return out;
+// Heartbeats (from stage 2): every BEAT_EVERY seconds a handful of pulses of light leave the
+// mother along the network. How many beats fall between two moments (t seconds into the stage).
+export const BEAT_EVERY = 2.4;
+export function beatsBetween(from: number, to: number) {
+  if (to <= from || to < 0) return 0;
+  return Math.max(0, Math.floor(to / BEAT_EVERY) - Math.floor(Math.max(0, from) / BEAT_EVERY)) + (from < 0 && to >= 0 ? 1 : 0);
 }
+
+// The tree crowns turn from green towards teal and violet as the trip deepens: degrees round the
+// colour wheel.
+export const CANOPY_HUE_MAX = 75;
+export const canopyHue = (share: number) => CANOPY_HUE_MAX * Math.min(1, Math.max(0, share)) ** 1.2;
 
 // The colour band sweeping across the forest: where its middle is (0..1 across, then off the
 // far side and round again) and which glow colour it is, every BAND_TIME seconds.

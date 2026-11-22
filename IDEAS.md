@@ -68,7 +68,62 @@ item gets `[x]` plus a short note in italics saying what was actually done.
 - [x] **Colourful takeover** – Tiles under the mycelium change colour themselves (glowing moss, neon ground), so your territory looks different from the wild forest. *(The territory is painted one pixel per tile in neon moss tinted by each tile's glow colour, and drawn big with smoothing, so the glow blends softly from tile to tile; it is added onto the ground at 5% strength at the start and 25% at the goal. Repainted only when the network changes.)*
 - [x] **Floating spores** – Drifting glowing specks over your territory, denser as you spread. *(From 12 at the start to 180 at the goal, rising slowly off the territory and swaying for 4–7 seconds each, in the glow colours.)* All of the trip together costs about 1.3 ms a frame (median 12.2 ms against 10.9 ms without it at 41% held).
 
-### Pack 9 – Camera and panel
+### Pack 9 – A better trip ✓
+
+Under the trip the game looked bad: a rainbow-maze network, bubble-wrap trees, a sickly yellow drift,
+oversaturation, a carnival border, rings that look like interface marks and a muddy haze. With the
+trip's extra layers switched off the forest looked clean again. Start with a quick side-by-side test
+of the new direction (points 1 and 2) before changing everything.
+
+- [x] **"Black light" look** – As the trip deepens the forest darkens towards deep indigo and violet instead of getting brighter, and saturation tops out lower (about +0.45 instead of +1.0), so the colour comes from what glows: threads, mushrooms, specks. *(Floor, logs and trees are tinted towards deep indigo (#2e2466), from 10% of the way to the goal up to 70% of the way at the goal; saturation tops out at +0.45. Approved after a side-by-side test.)*
+- [x] **Branch colours** – Each main branch from the mother gets one colour and its side branches keep it with a slight drift: coloured veins spreading out like a living map, instead of confetti (today every tile picks one of five colours at random). Glow only on the thicker threads, so the tips stay fine. *(The branches leaving the mother get different colours in order round her; further out the biggest child keeps its parent's colour and a side branch of 8+ tiles starts the next one. Colours change at under 15% of joins (random colours changed at 4 in 5). The finest tips are 25% paler, and threads under 1.5 px don't glow. Threads also bend more and sit further off the grid, for softer corners.)*
+- [x] **Dreamlike trees** – No neon rings round the crowns. Instead the canopy slowly shifts towards teal and violet, with a few glowing spots like bioluminescent fungi. *(The crowns turn up to 75° round the colour wheel, green to teal to violet; a third of them get 2–4 glowing spots in cyan, lilac or pale green that breathe.)*
+- [x] **No whole-screen colour drift** – Keep the drift for the glowing things only, so the forest stays grounded while the network shimmers. *(The drift of up to 28° now turns only the threads.)*
+- [x] **Soft edges instead of the kaleidoscope border** – Gentle colour drifting in from the corners and edges like a vignette, in place of the hard diamond frame. *(From stage 3, a soft glow reaching 14 tiles in from each corner, slowly changing through the glow colours, at up to 22%.)*
+- [x] **Waves of soft light** – A stage wave is a soft glow sweeping over the ground that lights up the threads as it passes, not a thin ring; ripples become a slow pulse along the network (or go). *(A stage wave is a soft glow in the stage's colour spreading out from the mother with only a faint edge, plus a brief brightening. The rings are gone: from stage 2, every 2.4 s a heartbeat sends 5 pulses of light at once from the mother out along the network (8 at stage 4).)*
+- [x] **Rich dark territory** – The ground under the network becomes deep, fertile soil with tiny glowing specks, so the network glows against it, instead of a pinkish fog. *(Three deep violet-black soil colours, one pixel per tile and smoothed, laid over the territory at 10% at the start up to 60% at the goal; the twinkles and floating specks glow on it.)*
+- [x] **Mushrooms that stand out** – A soft glow in each mushroom's own colour, so they can always be found at a glance. *(A breathing glow 2.8 tiles across (4.4 for the mother), from 20% strength at the start to 65% at the goal; it grows in with a new mushroom.)* All of the trip now costs about 0.8 ms more a frame than before (median 13 ms at 46% held).
+
+### Pack 10 – A real threat, and smoother
+
+- [ ] **Stronger beetles** – Beetles are barely a threat now: they eat only 29–50 tiles a round out of about 620, and with nobody playing the mother survived 15 minutes on 4 of 5 maps, the forest stuck at about 10%. Make them come in small swarms, go for mushrooms and the mother more often, and get tougher as the round goes on, so bursting and placing mushrooms matter.
+- [ ] **Seeing the danger** – Arrows at the screen edge where beetles are coming in, and a red pulse on the mother (and other mushrooms) while one is being eaten.
+- [ ] **A less murky start** – The opening is so grey that logs, mushrooms and beetles blend in. Make the dullest look a little less dull, keeping the journey to colour.
+- [ ] **No more stutters from specks** – Single slow frames of 60–160 ms showed up in stress tests, likely from spores and floating specks being made and thrown away constantly. Reuse them instead (pooling).
+- [ ] **A cheaper network redraw** – Redrawing the settled network takes about 7.5 ms on a half-covered map, every 0.6 s while growing: a small regular stutter on slower computers. Make it cheaper or spread it out.
+
+### Pack 11 – Level 2: Pine Hollow
+
+Each forest brings one new idea to learn plus a step up in difficulty – not just faster bugs. Needs the
+stronger beetles from Pack 10.
+
+- [ ] **A stream through the middle** – Mycelium can't grow over water; a few fallen logs lie across it as bridges. Reach and hold the bridges to spread to the other side – and beetles can cut you off there.
+- [ ] **A pine forest** – Long rows and clumps of pines instead of round clusters, on a darker, cooler floor of needles, so it looks different at once. (Pines suit the shelf fungus from Pack 13.)
+- [ ] **Fewer, bigger logs** – Acidic needles mean fewer rotting logs, but each holds more nutrients: reaching them is a race.
+- [ ] **Harder beetles** – They arrive after 15 s instead of 25 s, every 9 s down to 3 s instead of 12 down to 3.5, in pairs; and a new kind, the bark beetle, goes for mushrooms rather than threads.
+- [ ] **A front to hold** – The mother starts near one edge, and beetles come mostly from the far side.
+- [ ] **A bigger map** – 56×36 instead of 48×32, goal 50% as before.
+- [ ] **Unlocking** – Win The Little Wood once; the menu then shows Pine Hollow open with a line on what's new ("A stream splits the forest. Hold the bridges.").
+
+### Pack 12 – A deeper profile
+
+- [ ] **A name and a look** – Name your fungus (for example "The Violet Bloom") and choose a colour scheme for the mother mushroom and your threads; more schemes unlock as you level up.
+- [ ] **A mother that grows with you** – Every few levels her cap gets bigger and gains new markings, so your progress shows in every round.
+- [ ] **An upgrade tree** – Replace the six separate upgrades with a branching tree in three directions – Growth (spreading), Defence (beetles) and Decay (nutrients and logs). Deeper upgrades need earlier ones and offer bigger choices (for example "Bursts infect instead of kill"), so builds can differ.
+- [ ] **Personal records** – Best time, most beetles in one round, fewest tiles grown by hand in a win, highest spores a second and more; a new record is called out on the end screen.
+- [ ] **Progress charts** – Charts in the profile of your best time over the rounds and XP per round, to see yourself getting better.
+- [ ] **Achievements** – About 30 badges in a grid, some hidden until earned (for example "Win without a single mushroom", "Reach stage 4 in under 3 minutes"), each giving a little XP.
+
+### Pack 13 – New things to build
+
+Each is unlocked by reaching a player level, and the menu shows what the next level brings. They sit in a
+small build menu next to the two tools (keys 3 and up), with the price in red when it can't be afforded.
+
+- [ ] **Digest (level 2)** – Turn spores into nutrients, or nutrients into spores, at a poor rate, for when you have plenty of one and need the other.
+- [ ] **Shelf fungus (level 3)** – Grows on the side of a tree next to your network and slowly makes nutrients, so trees become useful instead of only walls. Costs nutrients.
+- [ ] **Spore tower (level 5)** – A tall mushroom that shoots spores at beetles from far away, every second. Costs nutrients and spores.
+
+### Pack 14 – Camera and panel
 
 - [ ] **Zoom and pan** – Scroll to zoom in on the fight and drag to move around, with sharper art up close.
 - [ ] **Styled panel** – A glowing, organic top panel with icons for spores, nutrients and beetles instead of plain text.

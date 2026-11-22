@@ -35,7 +35,9 @@ Things learned while building Mycelium that are worth knowing before the next ch
   the seed and remakes the level, so anything new added to `Game` that changes during a round
   must be added to `SavedRound` too, or it is lost on load: the "carries on exactly" test in
   `save.test.ts` will catch most such slips.
-- `render/TripView.ts` draws the trip; its numbers (stages, hue drift, counts, waves) are plain
+- `render/TripView.ts` draws the trip (black light, dark territory, glowing spots on trees, corner
+  glows, waves, specks); GameView applies its tints and colour filters to the forest, crowns and
+  threads; its numbers (stages, hue drift, counts, waves) are plain
   functions in `render/trip.ts`, tested. The stages go by the share of the goal, so stage 4 comes
   with the win. Shared small textures (the soft dot, the band, the kaleidoscope tile) are in
   `render/textures.ts`, made once.
@@ -95,5 +97,14 @@ Things learned while building Mycelium that are worth knowing before the next ch
 - Additive glow adds up fast: the first territory glow (45% strength in bright moss) washed the
   network out to pastel. Keep big added layers faint (the ground tops out at 25%) and check the
   threads still read on top.
+- For a big visual change, show a side-by-side test of the direction first (before/after
+  screenshots of the same scene) and build the rest after a yes: Pack 9 did that.
+- Test scenes can be shown without starting a round: `view.setGame(createLevel1(seed))`, step it with
+  `step()` and `view.draw()`, and hide the menu with a `<style>` rule (`.overlay{display:none!important}`):
+  React redraws the menu, so hiding the element itself doesn't stick. Nothing is autosaved that way.
+- When clearing test saves, first stop the test round (or set its status to over): reloading a
+  page with a round in play autosaves it on the way out. A test round of Pack 8 slipped into the
+  saves exactly like that and showed up as "Continue your round" (0:07, 41% held).
+- A filter on a layer (the crowns, the threads) costs about 0.4 ms a frame each at 1280×800.
 - Enemies need a way to leave. Before beetles got full and walked off, they piled up to 195 on
   one map.

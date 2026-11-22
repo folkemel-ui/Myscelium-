@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import {
-  bandAt, floaterCount, hueShift, MAX_FLOATERS, MAX_HUE, MIN_FLOATERS, RIPPLE_EVERY, RIPPLE_LIFE, ripplesAt, stageFor,
+  bandAt, BEAT_EVERY, beatsBetween, BLACK_LIGHT_MAX, blackLight, CANOPY_HUE_MAX, canopyHue, floaterCount, hueShift, MAX_FLOATERS, MAX_HUE, MIN_FLOATERS, stageFor,
   stageStrength, stageWave, STAGE_WAVE_TIME,
 } from './trip';
 
@@ -25,6 +25,17 @@ describe('the trip', () => {
     expect(swing).toBeGreaterThan(MAX_HUE * 0.6);
   });
 
+  test('the forest darkens towards indigo as the trip deepens, never fully', () => {
+    expect(blackLight(0)).toEqual({ amount: 0, tint: 0xffffff });
+    expect(blackLight(0.1).amount).toBe(0);
+    expect(blackLight(1).amount).toBeCloseTo(BLACK_LIGHT_MAX);
+    const t = blackLight(1).tint;
+    const [r, g, b] = [(t >> 16) & 255, (t >> 8) & 255, t & 255];
+    expect(b).toBeGreaterThan(r); // violet-blue, not grey
+    expect(b).toBeGreaterThan(g);
+    expect(r + g + b).toBeGreaterThan(200); // dark, but the forest is still there
+  });
+
   test('more specks float the further the spread', () => {
     expect(floaterCount(0)).toBe(MIN_FLOATERS);
     expect(floaterCount(1)).toBe(MAX_FLOATERS);
@@ -39,12 +50,19 @@ describe('the trip', () => {
     expect(stageWave(STAGE_WAVE_TIME)).toBeNull();
   });
 
-  test('ripples leave the mother regularly, a few alive at once', () => {
-    expect(ripplesAt(0)).toEqual([0]);
-    const alive = ripplesAt(30);
-    expect(alive.length).toBeGreaterThanOrEqual(Math.floor(RIPPLE_LIFE / RIPPLE_EVERY));
-    expect(alive.length).toBeLessThanOrEqual(Math.ceil(RIPPLE_LIFE / RIPPLE_EVERY));
-    expect(alive.every((r) => r >= 0 && r < 1)).toBe(true);
+  test('heartbeats come every BEAT_EVERY seconds, one at the very start', () => {
+    expect(beatsBetween(-0.01, 0)).toBe(1);
+    expect(beatsBetween(0, BEAT_EVERY - 0.01)).toBe(0);
+    expect(beatsBetween(BEAT_EVERY - 0.01, BEAT_EVERY + 0.01)).toBe(1);
+    let total = 0;
+    for (let s = 0; s < 60; s += 0.016) total += beatsBetween(s, s + 0.016);
+    expect(total).toBe(Math.floor(60.0 / BEAT_EVERY));
+  });
+
+  test('the trees turn towards teal and violet, not at the start', () => {
+    expect(canopyHue(0)).toBe(0);
+    expect(canopyHue(1)).toBe(CANOPY_HUE_MAX);
+    expect(canopyHue(0.5)).toBeLessThan(CANOPY_HUE_MAX / 2);
   });
 
   test('the colour band sweeps across and changes colour each lap', () => {

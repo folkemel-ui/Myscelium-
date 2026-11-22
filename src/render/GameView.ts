@@ -9,6 +9,7 @@ import { CreatureView } from './CreatureView';
 import { paintFloor, paintLightSpot } from './floor';
 import { NetworkView } from './NetworkView';
 import { TripView } from './TripView';
+import { blackLight } from './trip';
 import {
   CANOPY_GREENS, crownLayout, hash, lightAt, lightSpots, logLook, sway, TS, type Crown, type LightSpot,
 } from './forestLayout';
@@ -21,8 +22,10 @@ const LIGHT_STRENGTH = 0.12;
 
 // How dull the forest is: the filter's saturation, from nearly grey at the start to vivid at the
 // goal. Pixi's saturate is fully grey at -1 and flips colours to their opposites below that.
+// It tops out at +0.45: the colour at the goal comes from what glows, not from turning everything up.
+export const MAX_SATURATION = 0.45;
 export function saturationFor(share: number) {
-  return -0.85 + 1.85 * Math.min(1, share);
+  return -0.85 + (0.85 + MAX_SATURATION) * Math.min(1, share);
 }
 
 function shade(color: number, f: number) {
@@ -66,6 +69,8 @@ export class GameView {
   readonly creatures = new CreatureView();
   private hover = new Graphics();
   private colour = new ColorMatrixFilter();
+  private canopyColour = new ColorMatrixFilter(); // turns the crowns towards teal and violet
+  private threadColour = new ColorMatrixFilter(); // the slow colour drift, on the threads only
   private pointerTile = -1;
   private pointerAt: { x: number; y: number } | null = null; // the mouse over the map, in tiles
   // While frozen (paused, or the help is open) the game doesn't move on, the forest stands still,
@@ -88,12 +93,14 @@ export class GameView {
     host.appendChild(view.app.canvas);
     view.world.addChild(
       view.floor, view.trip.ground, view.logs, view.network.glowLayer, view.network.threadLayer, view.canopy,
-      view.trip.rims, view.light, view.lightMask, view.trip.air, view.trip.airMask,
+      view.trip.spots, view.light, view.lightMask, view.trip.air, view.trip.airMask, view.creatures.halos,
       view.creatures.under, view.creatures.mushroomLayer, view.creatures.spores, view.creatures.beetleLayer, view.hover,
     );
     view.light.mask = view.lightMask;
     view.lightTexture = Texture.from(paintLightSpot());
     view.world.filters = [view.colour];
+    view.canopy.filters = [view.canopyColour];
+    view.network.threadLayer.filters = [view.threadColour];
     view.buildForest();
     view.app.stage.addChild(view.world, view.creatures.sparkles);
     view.app.stage.eventMode = 'static';
@@ -251,7 +258,14 @@ export class GameView {
     const share = coverage(g) / WIN_COVERAGE;
     const trip = this.trip.update(g, this.clock, dt, share);
     this.colour.saturate(saturationFor(share), false);
-    this.colour.hue(trip.hue, true);
+    // Black light: the forest darkens towards indigo, the glowing things don't.
+    const night = blackLight(share).tint;
+    this.floor.tint = night;
+    this.logs.tint = night;
+    this.canopy.tint = night;
+    this.canopyColour.hue(trip.canopyHue, false);
+    this.threadColour.hue(trip.threadHue, false);
+    if (trip.beats > 0) this.network.heartbeat(trip.beats);
     if (trip.flash > 0) this.colour.brightness(1 + 0.22 * trip.flash, true);
     if (trip.newStage !== null) this.events.onStage?.(trip.newStage);
     this.network.update(g, this.clock, dt, share);
@@ -266,7 +280,7 @@ export class GameView {
       sprite.position.set(p.x, p.y);
       sprite.alpha = LIGHT_STRENGTH * p.bright;
     }
-    this.creatures.update(g, this.clock, dt, {
+    this.creatures.update(g, this.clock, dt, share, {
       toScreen: (x, y) => this.world.toGlobal({ x, y }),
       counter: this.events.nutrientCounter,
       onSparkle: this.events.onSparkle,

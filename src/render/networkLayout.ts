@@ -2,7 +2,7 @@
 // grew from (its parent) by a curving thread. Threads that carry more of the network are thicker,
 // so the network is thickest near the mother and fine at its tips. Plain numbers, no drawing.
 import { idx, inside, type Game } from '../game/world';
-import { hash, TS } from './forestLayout';
+import { GLOW, hash, TS } from './forestLayout';
 
 export interface NetNode {
   tile: number;
@@ -16,6 +16,8 @@ export interface NetNode {
   cx: number; // the thread's bend: a control point between parent and node
   cy: number;
   hairs: { angle: number; length: number; bend: number }[]; // fine strands reaching into open ground
+  branch: number; // which glow colour its branch has (an index into GLOW)
+  color: number; // its thread's colour: the branch's, a little paler at the finest tips
 }
 
 export interface NetworkLayout {
@@ -39,9 +41,9 @@ export function networkLayout(g: Game): NetworkLayout {
     const y = (tile - x) / g.w;
     const root = parent < 0;
     return {
-      tile, parent, depth, children: [], size: 1, width: 0, cx: 0, cy: 0, hairs: [],
-      x: (x + 0.5 + (root ? 0 : (hash(g, tile, 101) - 0.5) * 0.4)) * TS,
-      y: (y + 0.5 + (root ? 0 : (hash(g, tile, 102) - 0.5) * 0.4)) * TS,
+      tile, parent, depth, children: [], size: 1, width: 0, cx: 0, cy: 0, hairs: [], branch: 0, color: GLOW[0],
+      x: (x + 0.5 + (root ? 0 : (hash(g, tile, 101) - 0.5) * 0.5)) * TS,
+      y: (y + 0.5 + (root ? 0 : (hash(g, tile, 102) - 0.5) * 0.5)) * TS,
     };
   };
   // Each tile costs a different amount to grow through, and every tile joins the network by its
@@ -94,7 +96,7 @@ export function networkLayout(g: Game): NetworkLayout {
     n.width = threadWidth(n.size);
     if (n.parent >= 0) {
       const p = nodes.get(n.parent)!;
-      const bend = (hash(g, n.tile, 104) - 0.5) * 0.55 * TS;
+      const bend = (hash(g, n.tile, 104) - 0.5) * 0.9 * TS;
       const len = Math.hypot(n.x - p.x, n.y - p.y) || 1;
       n.cx = (p.x + n.x) / 2 - ((n.y - p.y) / len) * bend;
       n.cy = (p.y + n.y) / 2 + ((n.x - p.x) / len) * bend;
@@ -112,8 +114,43 @@ export function networkLayout(g: Game): NetworkLayout {
       });
     });
   }
+  colourBranches(nodes, order, roots);
   const leaves = [...nodes.values()].filter((n) => n.children.length === 0 && n.parent >= 0).map((n) => n.tile);
   return { nodes, roots, leaves };
+}
+
+// Branch colours: each branch leaving a root gets its own glow colour, round the palette in order
+// of direction so neighbouring branches differ. Down the network, the biggest child keeps its
+// parent's colour and any other child carrying at least BRANCH_MIN tiles starts a new colour, so
+// the network reads as coloured veins; small twigs keep their parent's colour. The finest tips are
+// a little paler.
+export const BRANCH_MIN = 8;
+function colourBranches(nodes: Map<number, NetNode>, order: number[], roots: number[]) {
+  roots.forEach((r, k) => {
+    const root = nodes.get(r)!;
+    root.branch = k % GLOW.length;
+    const kids = root.children.map((c) => nodes.get(c)!);
+    kids.sort((a, b) => Math.atan2(a.y - root.y, a.x - root.x) - Math.atan2(b.y - root.y, b.x - root.x));
+    kids.forEach((c, j) => (c.branch = (root.branch + j) % GLOW.length));
+  });
+  for (const t of order) {
+    const n = nodes.get(t)!;
+    if (n.parent < 0) continue;
+    const kids = n.children.map((c) => nodes.get(c)!).sort((a, b) => b.size - a.size);
+    let next = 1;
+    kids.forEach((c, j) => {
+      c.branch = j > 0 && c.size >= BRANCH_MIN ? (n.branch + next++) % GLOW.length : n.branch;
+    });
+  }
+  for (const n of nodes.values()) {
+    const base = GLOW[n.branch];
+    n.color = n.size <= 2 ? mixColour(base, 0xffffff, 0.25) : base;
+  }
+}
+
+export function mixColour(a: number, b: number, t: number) {
+  const ch = (s: number) => Math.round(((a >> s) & 255) * (1 - t) + ((b >> s) & 255) * t);
+  return (ch(16) << 16) | (ch(8) << 8) | ch(0);
 }
 
 // A point part of the way (s, 0..1) along the thread from a node's parent to the node.
