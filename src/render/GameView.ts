@@ -6,8 +6,9 @@ import { BEETLE_HP, BURST_COOLDOWN, WIN_COVERAGE } from '../game/constants';
 import { burst, canGrowAt, coverage, growMycelium, mushroomAt, plantMushroom } from '../game/sim';
 import { idx, inside, TILE, type Beetle, type Game } from '../game/world';
 import { paintFloor, paintLightSpot } from './floor';
+import { NetworkView } from './NetworkView';
 import {
-  CANOPY_GREENS, crownLayout, hash, lightAt, lightSpots, logLook, sway, TS, type Crown, type LightSpot,
+  CANOPY_GREENS, crownLayout, glowAt, hash, lightAt, lightSpots, logLook, sway, TS, type Crown, type LightSpot,
 } from './forestLayout';
 
 export type Tool = 'grow' | 'mushroom';
@@ -15,9 +16,6 @@ export type Tool = 'grow' | 'mushroom';
 // Patches of sunlight are added on top of what's below, this strong at their brightest.
 const LIGHT_STRENGTH = 0.12;
 
-// The psychedelic colours the mycelium glows in.
-const GLOW = [0xff4fd8, 0x4ff3ff, 0xb6ff4f, 0xffb84f, 0x9d6bff];
-const glowAt = (noise: number) => GLOW[Math.floor(noise * GLOW.length) % GLOW.length];
 
 // How dull the forest is: the filter's saturation, from nearly grey at the start to vivid at the
 // goal. Pixi's saturate is fully grey at -1 and flips colours to their opposites below that.
@@ -57,13 +55,12 @@ export class GameView {
   private lightMask = new Graphics();
   private lights: { spot: LightSpot; sprite: Sprite }[] = [];
   private lightTexture = Texture.EMPTY;
-  private network = new Graphics();
+  readonly network = new NetworkView();
   private things = new Graphics();
   private hover = new Graphics();
   private beetleLayer = new Container();
   private beetleShapes = new Map<number, Graphics>();
   private colour = new ColorMatrixFilter();
-  private drawnVersion = -1;
   private pointerTile = -1;
   private dragging = false;
   private lastDragTile = -1;
@@ -81,7 +78,7 @@ export class GameView {
     await view.app.init({ resizeTo: host, background: 0x15110d, antialias: true });
     host.appendChild(view.app.canvas);
     view.world.addChild(
-      view.floor, view.logs, view.network, view.canopy, view.light, view.lightMask,
+      view.floor, view.logs, view.network.glowLayer, view.network.threadLayer, view.canopy, view.light, view.lightMask,
       view.things, view.beetleLayer, view.hover,
     );
     view.light.mask = view.lightMask;
@@ -105,7 +102,7 @@ export class GameView {
 
   setGame(game: Game) {
     this.game = game;
-    this.drawnVersion = -1;
+    this.network.reset();
     for (const shape of this.beetleShapes.values()) shape.destroy();
     this.beetleShapes.clear();
     this.buildForest();
@@ -228,10 +225,7 @@ export class GameView {
     this.fit();
     const share = coverage(g) / WIN_COVERAGE;
     this.colour.saturate(saturationFor(share), false);
-    if (g.version !== this.drawnVersion) {
-      this.drawnVersion = g.version;
-      this.drawNetwork();
-    }
+    this.network.update(g, this.clock, dt, share);
     this.drawLogs();
     for (const { crown, shape } of this.crowns) {
       const s = sway(crown, this.clock);
@@ -243,8 +237,6 @@ export class GameView {
       sprite.position.set(p.x, p.y);
       sprite.alpha = LIGHT_STRENGTH * p.bright;
     }
-    // The network breathes, more strongly as the forest comes alive.
-    this.network.alpha = 0.82 + 0.18 * Math.sin(this.clock * (1.5 + share * 2)) * Math.min(1, share + 0.2);
     this.drawThings();
     this.drawBeetles();
     this.drawHover();
@@ -302,34 +294,6 @@ export class GameView {
         const side = (hash(g, i, 95 + k) - 0.5) * thick * 0.5;
         gr.circle(cx + (vertical ? side : along), cy + (vertical ? along : side), 1.8 + hash(g, i, 99 + k) * 1.5)
           .fill({ color: 0x6a9a3a, alpha: 0.9 });
-      }
-    }
-  }
-
-  private drawNetwork() {
-    const g = this.game;
-    const net = this.network.clear();
-    for (let y = 0; y < g.h; y++) {
-      for (let x = 0; x < g.w; x++) {
-        const i = idx(g, x, y);
-        if (!g.mycelium[i]) continue;
-        const cx = x * TS + TS / 2;
-        const cy = y * TS + TS / 2;
-        const color = glowAt(g.noise[i]);
-        net.circle(cx, cy, TS * 0.62).fill({ color, alpha: 0.16 });
-        net.circle(cx, cy, 2.2).fill({ color, alpha: 0.9 });
-        // Threads to the network's neighbours, a little wavy.
-        for (const [dx, dy] of [[1, 0], [0, 1]] as const) {
-          if (!inside(g, x + dx, y + dy) || !g.mycelium[idx(g, x + dx, y + dy)]) continue;
-          const wobble = (g.noise[i] - 0.5) * 6;
-          net.moveTo(cx, cy)
-            .quadraticCurveTo(cx + dx * TS * 0.5 + dy * wobble, cy + dy * TS * 0.5 + dx * wobble, cx + dx * TS, cy + dy * TS)
-            .stroke({ width: 2, color, alpha: 0.75 });
-        }
-        // A few fine hairs reaching out.
-        const a = g.noise[i] * Math.PI * 2;
-        net.moveTo(cx, cy).lineTo(cx + Math.cos(a) * TS * 0.45, cy + Math.sin(a) * TS * 0.45)
-          .stroke({ width: 1, color: 0xffffff, alpha: 0.35 });
       }
     }
   }

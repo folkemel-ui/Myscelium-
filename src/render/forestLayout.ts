@@ -191,3 +191,7 @@ export function lightAt(s: LightSpot, t: number, width: number, height: number) 
     bright: 0.6 + 0.4 * Math.sin(t * 0.35 + s.phase),
   };
 }
+
+// The psychedelic colours the mycelium (and its mushrooms) glow in, picked per tile.
+export const GLOW = [0xff4fd8, 0x4ff3ff, 0xb6ff4f, 0xffb84f, 0x9d6bff];
+export const glowAt = (noise: number) => GLOW[Math.floor(noise * GLOW.length) % GLOW.length];

@@ -24,13 +24,13 @@ item gets `[x]` plus a short note in italics saying what was actually done.
 - [x] **Varied rocks and logs** – Several rock shapes with moss; logs that visibly shrink and crumble as they rot. *(Rocks are irregular outlines of 6–9 sides, shaded light to dark, with a crack, and moss on 70% of them. Logs lie either way and change in 8 steps as they rot: down to 45% of their length, darker bark and cut end, up to 4 moss patches and 7 crumbs around them. A rotted log leaves a dark patch of crumbs.)*
 - [x] **Light through the leaves** – Soft patches of sunlight drifting slowly across the floor. *(9 warm patches, 2.5–5.5 tiles across, drift at a few pixels a second, wrap round the map and slowly brighten and fade, added on top at up to 12% strength.)*
 
-### Pack 3 – A living network
+### Pack 3 – A living network ✓
 
-- [ ] **Organic threads** – Curving, branching threads that wander between tiles and thicken near the mother, instead of a grid of straight lines.
-- [ ] **Growth animation** – New tiles grow in, threads creeping outward over half a second instead of popping in.
-- [ ] **Glow and light** – Real additive glow, so the network lights the ground around it, stronger as the forest turns colourful.
-- [ ] **Pulses along the network** – Little light pulses travelling out from the mother along the threads, like a heartbeat.
-- [ ] **Damage you can see** – Eaten tiles wither and fade instead of vanishing.
+- [x] **Organic threads** – Curving, branching threads that wander between tiles and thicken near the mother, instead of a grid of straight lines. *(Every tile of mycelium joins the network by its cheapest way from the mother, with each tile costing a random 1–3.5 to cross, so branches wander and fork instead of running in rows. Threads bend, sit up to 0.2 tiles off the grid, and are 0.9 px at the tips up to 4.5 px near the mother, by how much of the network hangs from them; thick ones have a pale shine. Knots where threads branch, and up to 2 fine hairs per tile reaching into open ground. A piece cut off from the mother gets its own root.)*
+- [x] **Growth animation** – New tiles grow in, threads creeping outward over half a second instead of popping in. *(Each new thread creeps out from its parent over 0.5 s, easing in, with a bright tip; hairs sprout as it arrives. A new forest's first patch is simply there.)*
+- [x] **Glow and light** – Real additive glow, so the network lights the ground around it, stronger as the forest turns colourful. *(Two wide, faint strokes under every thread are added onto the ground below, plus a halo round the mother. The glow is at 35% strength at the start and 100% at the goal, and breathes faster as you spread.)*
+- [x] **Pulses along the network** – Little light pulses travelling out from the mother along the threads, like a heartbeat. *(A bright dot with a coloured halo sets off from the mother to a random tip every 0.35 s at the start and every 0.12 s at the goal, at 4.5 threads a second, up to 40 at once.)*
+- [x] **Damage you can see** – Eaten tiles wither and fade instead of vanishing. *(An eaten thread shrivels, wobbles, sags, fades and turns the colour of dead leaves over 0.9 s.)*
 
 ### Pack 4 – Mushrooms and beetles
 

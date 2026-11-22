@@ -18,8 +18,9 @@ Things learned while building Mycelium that are worth knowing before the next ch
 - `src/game/` is the rules: plain TypeScript, no React or Pixi, so it can be tested on its own.
   `world.ts` makes the level and holds the types, `sim.ts` has `step(game, dt)` and the player's
   actions (each returns `null` when it worked, or a reason it didn't), `constants.ts` every number.
-- `src/render/GameView.ts` draws with PixiJS and turns clicks into actions. The network is redrawn
-  only when `game.version` changes, the logs only when one reaches its next rot stage; crowns sway,
+- `src/render/GameView.ts` draws with PixiJS and turns clicks into actions. The network is drawn by
+  `render/NetworkView.ts` (laid out by `render/networkLayout.ts`): settled threads only when
+  `game.version` changes, growing and withering threads and pulses every frame on a live layer; the logs only when one reaches its next rot stage; crowns sway,
   light drifts, and mushrooms, puffs and beetles are drawn every frame.
 - `src/ui/App.tsx` is the React panel. It copies a snapshot of the game about 10 times a second;
   React never re-renders every frame.
@@ -44,5 +45,12 @@ Things learned while building Mycelium that are worth knowing before the next ch
   React updates lag. Time drawing directly instead: call `view.draw` and `app.renderer.render`, then
   `gl.readPixels` one pixel so the graphics card finishes. Pack 2: 7 ms a frame at 1280×800, about
   3 ms of it the 234 swaying crowns (`cacheAsTexture` saved only 0.4 ms, so it isn't used).
+- Pixi Graphics: one `stroke()` per thread is slow. Stroking ~600 threads 3–4 times each took 17 ms;
+  grouping threads by colour and width into one path per group (~40 strokes) took 7.5 ms. Draw many
+  similar lines as one path.
+- Something moving between two layers (growing → settled) must stay on the old one until the new
+  one is redrawn with it, or it blinks out in between.
+- Spreading the network breadth-first gave straight comb-like rows; a cheapest-path spread with a
+  random cost per tile makes it wander and fork.
 - Enemies need a way to leave. Before beetles got full and walked off, they piled up to 195 on
   one map.
