@@ -1,4 +1,5 @@
-import { HISTORY_EVERY, LOG_NUTRIENTS, MAP_H, MAP_W, START_SPORES } from './constants';
+import * as C from './constants';
+import { HISTORY_EVERY, LOG_NUTRIENTS, MAP_H, MAP_W } from './constants';
 import { makeRng, type Rng } from './rng';
 
 export const TILE = { SOIL: 0, TREE: 1, ROCK: 2, LOG: 3 } as const;
@@ -34,6 +35,27 @@ export interface Puff {
 }
 
 export type Status = 'playing' | 'won' | 'lost';
+
+// The numbers a round plays with, which upgrades can change (see progress.ts).
+export interface Mods {
+  growCost: number; // spores per tile grown by hand
+  sporeBoost: number; // mushrooms' spores are multiplied by this
+  burstDamage: number;
+  burstRange: number; // tiles
+  creep: number; // tiles a second the network creeps out on its own
+  eatTime: number; // seconds a beetle takes to eat a tile
+  startSpores: number;
+}
+
+export const DEFAULT_MODS: Mods = {
+  growCost: C.GROW_COST,
+  sporeBoost: 1,
+  burstDamage: C.BURST_DAMAGE,
+  burstRange: C.BURST_RANGE,
+  creep: C.CREEP_PER_SECOND,
+  eatTime: C.BEETLE_EAT_TIME,
+  startSpores: C.START_SPORES,
+};
 
 // Counted over a round, for the end screen.
 export interface RoundStats {
@@ -73,6 +95,7 @@ export interface Game {
   history: { t: number; held: number }[]; // the share of the forest held, every HISTORY_EVERY seconds
   nextSample: number;
   stats: RoundStats;
+  mods: Mods;
   nextId: number;
   version: number; // goes up whenever tiles or the network change, so the ground is redrawn
   rng: Rng;
@@ -84,7 +107,7 @@ export const canHoldMycelium = (t: number) => t === TILE.SOIL || t === TILE.LOG;
 
 // Level 1: a small forest with clumps of trees, a few rocks and rotting logs, and the mother
 // mushroom in the middle on a clear patch.
-export function createLevel1(seed = 1): Game {
+export function createLevel1(seed = 1, mods: Mods = DEFAULT_MODS): Game {
   const rng = makeRng(seed);
   const w = MAP_W;
   const h = MAP_H;
@@ -133,7 +156,8 @@ export function createLevel1(seed = 1): Game {
     beetles: [],
     puffs: [],
     events: [],
-    spores: START_SPORES,
+    spores: mods.startSpores,
+    mods,
     nutrients: 0,
     time: 0,
     nextBeetle: 0,

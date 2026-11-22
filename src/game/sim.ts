@@ -9,7 +9,7 @@ export const coverage = (g: Game) => g.covered / g.growable;
 
 export function sporesPerSecond(g: Game): number {
   let rate = g.covered * C.MYCELIUM_SPORES;
-  for (const m of g.mushrooms) rate += m.mother ? C.MOTHER_SPORES : C.MUSHROOM_SPORES;
+  for (const m of g.mushrooms) rate += (m.mother ? C.MOTHER_SPORES : C.MUSHROOM_SPORES) * g.mods.sporeBoost;
   return rate;
 }
 
@@ -46,8 +46,8 @@ export const mushroomAt = (g: Game, x: number, y: number): Mushroom | undefined 
 export function growMycelium(g: Game, x: number, y: number): string | null {
   if (g.status !== 'playing') return 'The level is over';
   if (!canGrowAt(g, x, y)) return 'Mycelium can only grow next to your network, on open ground';
-  if (g.spores < C.GROW_COST) return `Growing costs ${C.GROW_COST} spores`;
-  g.spores -= C.GROW_COST;
+  if (g.spores < g.mods.growCost) return `Growing costs ${g.mods.growCost} spores`;
+  g.spores -= g.mods.growCost;
   g.stats.grown++;
   addMycelium(g, idx(g, x, y));
   return null;
@@ -72,7 +72,7 @@ export function burst(g: Game, x: number, y: number): string | null {
   if (m.cooldown > 0) return `Ready again in ${Math.ceil(m.cooldown)} s`;
   m.cooldown = C.BURST_COOLDOWN;
   g.stats.bursts++;
-  sporeCloud(g, m.x + 0.5, m.y + 0.5, C.BURST_RANGE, C.BURST_DAMAGE, true);
+  sporeCloud(g, m.x + 0.5, m.y + 0.5, g.mods.burstRange, g.mods.burstDamage, true);
   return null;
 }
 
@@ -154,7 +154,7 @@ function rotLogs(g: Game, dt: number) {
 }
 
 function creep(g: Game, dt: number) {
-  g.creep += C.CREEP_PER_SECOND * dt;
+  g.creep += g.mods.creep * dt;
   while (g.creep >= 1) {
     g.creep -= 1;
     const edge: number[] = [];
@@ -212,7 +212,7 @@ function moveBeetle(g: Game, b: Beetle, dt: number) {
     return;
   }
   b.eatTimer += dt;
-  if (b.eatTimer >= C.BEETLE_EAT_TIME) {
+  if (b.eatTimer >= g.mods.eatTime) {
     removeMycelium(g, b.target);
     b.ate++;
     b.target = -1;

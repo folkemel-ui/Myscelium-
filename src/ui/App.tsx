@@ -1,8 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { GROW_COST, MUSHROOM_COST, WIN_COVERAGE } from '../game/constants';
+import { MUSHROOM_COST, WIN_COVERAGE } from '../game/constants';
+import {
+  buyUpgrade, finishRound, modsFor, newProfile, totalXp, xpToNext, type Profile, type UpgradeId, type XpLine,
+} from '../game/progress';
 import { coverage, sporesPerSecond, step } from '../game/sim';
-import { createLevel1, type Game, type RoundStats } from '../game/world';
+import { createLevel1, type Game, type Mods, type RoundStats } from '../game/world';
 import { GameView, type Tool } from '../render/GameView';
+import { MainMenu } from './MainMenu';
 import { formatTime, SpreadChart } from './SpreadChart';
 
 // What the panel shows, copied out of the game a few times a second (the game itself changes
@@ -18,6 +22,7 @@ interface Snapshot {
   time: number;
   stats: RoundStats;
   history: Game['history'] | null; // only once the round is over, for the chart
+  growCost: number;
 }
 
 const snapshot = (g: Game): Snapshot => ({
@@ -31,11 +36,12 @@ const snapshot = (g: Game): Snapshot => ({
   time: g.time,
   stats: { ...g.stats },
   history: g.status === 'playing' ? null : g.history.slice(),
+  growCost: g.mods.growCost,
 });
 
-const TOOLS: { tool: Tool; key: string; name: string; cost: string }[] = [
-  { tool: 'grow', key: '1', name: 'Grow mycelium', cost: `${GROW_COST} spores a tile` },
-  { tool: 'mushroom', key: '2', name: 'Grow mushroom', cost: `${MUSHROOM_COST} nutrients` },
+const TOOLS: { tool: Tool; key: string; name: string; cost: (s: Snapshot) => string }[] = [
+  { tool: 'grow', key: '1', name: 'Grow mycelium', cost: (s) => `${s.growCost} spores a tile` },
+  { tool: 'mushroom', key: '2', name: 'Grow mushroom', cost: () => `${MUSHROOM_COST} nutrients` },
 ];
 
 // Every way to play, for the help panel.
@@ -54,7 +60,15 @@ const HELP: [string, string][] = [
 
 const RESTART_WINDOW = 2000; // ms to press R a second time
 
-const newGame = () => createLevel1(Math.floor(Math.random() * 1e9));
+const newGame = (mods?: Mods) => createLevel1(Math.floor(Math.random() * 1e9), mods);
+
+// What a finished round earned, for the end screen.
+interface Summary {
+  lines: XpLine[];
+  before: Profile;
+  after: Profile;
+  levelsGained: number;
+}
 
 export function App() {
   const host = useRef<HTMLDivElement>(null);
@@ -71,6 +85,10 @@ export function App() {
   const [help, setHelp] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const restartArmed = useRef(0); // when R was pressed once during a round
+  const [screen, setScreen] = useState<'menu' | 'game'>('menu');
+  const [profile, setProfile] = useState<Profile>(newProfile);
+  const [summary, setSummary] = useState<Summary | null>(null);
+  const awarded = useRef<Game | null>(null); // the round XP was last given for
 
   // In development, the game is on window.game for poking at from the console.
   if (import.meta.env.DEV) (window as unknown as { game: Game }).game = game.current;
@@ -117,8 +135,18 @@ export function App() {
   useEffect(() => {
     if (!view.current) return;
     view.current.tool = tool;
-    view.current.frozen = paused || help;
-  }, [tool, paused, help, snap]);
+    view.current.frozen = paused || help || screen === 'menu';
+  }, [tool, paused, help, screen, snap]);
+
+  // When a round ends, it earns XP (once).
+  useEffect(() => {
+    if (snap.status === 'playing' || screen !== 'game' || awarded.current === game.current) return;
+    awarded.current = game.current;
+    const g = game.current;
+    const result = finishRound(profile, { won: g.status === 'won', held: coverage(g), kills: g.kills, time: g.time });
+    setSummary({ lines: result.lines, before: profile, after: result.profile, levelsGained: result.levelsGained });
+    setProfile(result.profile);
+  }, [snap.status, screen]);
 
   // The forest starts below the panel, however tall it is.
   useEffect(() => {
@@ -156,7 +184,9 @@ export function App() {
   }, [message]);
 
   const restart = () => {
-    game.current = newGame();
+    game.current = newGame(modsFor(profile));
+    setSummary(null);
+    setScreen('game');
     view.current?.setGame(game.current);
     setSnap(snapshot(game.current));
     setPaused(false);
@@ -181,10 +211,22 @@ export function App() {
     }
   };
 
+  const toMenu = () => {
+    setScreen('menu');
+    setPaused(false);
+    setHelp(false);
+  };
+  const buy = (id: UpgradeId) => setProfile((p) => buyUpgrade(p, id) ?? p);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       const key = e.key.toLowerCase();
+      if (screen === 'menu') {
+        if (key === 'enter') restart();
+        else if (key === 'f' && !e.repeat) toggleFullscreen();
+        return;
+      }
       const t = TOOLS.find((t) => t.key === key);
       if (t) return setTool(t.tool);
       if (key === ' ' || key === 'p') {
@@ -209,14 +251,14 @@ export function App() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [help, paused]);
+  }, [help, paused, screen, profile]);
 
   const goal = Math.min(1, snap.held / WIN_COVERAGE);
   const won = snap.status === 'won';
   return (
     <div className="app">
       <div className="stage" ref={host} />
-      <header className="panel" ref={panel}>
+      <header className="panel" ref={panel} hidden={screen === 'menu'}>
         <div className="stat time">
           <span className="label">Time</span>
           <strong>{formatTime(snap.time)}</strong>
@@ -245,7 +287,7 @@ export function App() {
           {TOOLS.map((t) => (
             <button key={t.tool} className={tool === t.tool ? 'on' : ''} onClick={() => setTool(t.tool)}>
               <kbd>{t.key}</kbd> {t.name}
-              <small>{t.cost}</small>
+              <small>{t.cost(snap)}</small>
             </button>
           ))}
         </div>
@@ -261,10 +303,12 @@ export function App() {
           </button>
         </div>
       </header>
-      <p className="hint">Drag to grow mycelium · click a mushroom to burst it · H for help</p>
+      {screen === 'game' && <p className="hint">Drag to grow mycelium · click a mushroom to burst it · H for help</p>}
       {message && <div className="toast" key={message.id}>{message.text}</div>}
 
-      {paused && !help && snap.status === 'playing' && (
+      {screen === 'menu' && <MainMenu profile={profile} onPlay={restart} onBuy={buy} />}
+
+      {paused && !help && snap.status === 'playing' && screen === 'game' && (
         <div className="overlay" onClick={() => setPaused(false)}>
           <div className="paused">
             <h1>Paused</h1>
@@ -290,10 +334,11 @@ export function App() {
         </div>
       )}
 
-      {snap.status !== 'playing' && (
+      {snap.status !== 'playing' && screen === 'game' && (
         <div className="overlay end">
           <div className="card">
             <h1>{won ? 'The forest is yours' : 'The mother mushroom was eaten'}</h1>
+            {summary && <XpSummary summary={summary} />}
             <dl className="round-stats">
               <div><dt>Time</dt><dd>{formatTime(snap.time)}</dd></div>
               <div><dt>Forest held</dt><dd>{Math.round(snap.held * 100)}%</dd></div>
@@ -303,11 +348,40 @@ export function App() {
               <div><dt>Most spores a second</dt><dd>{snap.stats.peakSpores.toFixed(1)}</dd></div>
             </dl>
             {snap.history && <SpreadChart history={snap.history} goal={WIN_COVERAGE} />}
-            <button onClick={restart}>Play again</button>
+            <div className="end-buttons">
+              <button onClick={restart}>Play again</button>
+              <button className="secondary" onClick={toMenu}>Main Menu</button>
+            </div>
           </div>
         </div>
       )}
     </div>
+  );
+}
+
+// The XP a round earned, line by line, and the level bar filling up.
+function XpSummary({ summary }: { summary: Summary }) {
+  const { lines, after, levelsGained } = summary;
+  const need = xpToNext(after.level);
+  return (
+    <section className="xp-summary" aria-label="XP earned">
+      <ul>
+        {lines.map((l) => (
+          <li key={l.label}><span>{l.label}</span><b>+{l.xp} XP</b></li>
+        ))}
+        <li className="total"><span>Total</span><b>+{totalXp(lines)} XP</b></li>
+      </ul>
+      <div className="xp-level">
+        <span>Level {after.level}</span>
+        <div className="bar"><div style={{ width: `${(after.xp / need) * 100}%` }} /></div>
+        <span>{after.xp} / {need}</span>
+      </div>
+      {levelsGained > 0 && (
+        <p className="level-up">
+          Level up! +{levelsGained} upgrade point{levelsGained > 1 ? 's' : ''} to spend in the Main Menu
+        </p>
+      )}
+    </section>
   );
 }
 

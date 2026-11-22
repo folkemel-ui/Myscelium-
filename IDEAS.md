@@ -47,12 +47,12 @@ item gets `[x]` plus a short note in italics saying what was actually done.
 - [x] **Round timer and stats** – Time played and spores per second in the panel, and a small chart of how you spread over time on the end screen. *(The panel shows the time as m:ss. The end screen shows time, forest held, beetles beaten, mushrooms grown, tiles grown by hand and the most spores a second, and a chart of the share held, noted every 2 seconds (at most 600 points), with the goal as a dashed line; hover to read the time and share. The panel now wraps onto two lines in windows under about 1,000 px, and the forest starts below it.)*
 - [x] **Fullscreen button** – One click to fill the screen. *(A button in the panel, or F. If the browser refuses, a message says so. Not checked in the preview pane, which refuses fullscreen.)*
 
-### Pack 6 – Progress between rounds
+### Pack 6 – Progress between rounds ✓
 
-- [ ] **XP for each round** – When a round ends, won or lost, the player gets XP based on how they did (for example forest held, beetles beaten, time taken, and a bonus for winning).
-- [ ] **Round summary** – A message pops up at the end showing the XP gained and the round's stats, with two buttons at the bottom: "Play again" and "Main Menu".
-- [ ] **Main menu** – Shows a level picker and the player's profile (level, XP towards the next level, upgrade points).
-- [ ] **Levels and upgrade points** – Each level-up gives one point to spend on permanent upgrades that last across the whole game.
+- [x] **XP for each round** – When a round ends, won or lost, the player gets XP based on how they did (for example forest held, beetles beaten, time taken, and a bonus for winning). *(2 XP per percent of the forest held, 5 per beetle beaten, 100 for a win, and for a win a speed bonus of 1 XP per 3 seconds under 5 minutes. A typical 3-minute win with 6 beetles earns 270 XP; a lost round still earns for what was held and beaten. A round given up with R earns nothing.)*
+- [x] **Round summary** – A message pops up at the end showing the XP gained and the round's stats, with two buttons at the bottom: "Play again" and "Main Menu". *(XP line by line with a total, the level bar after it, and a "Level up!" banner when a level was gained, above the stats and spread chart from Pack 5.)*
+- [x] **Main menu** – Shows a level picker and the player's profile (level, XP towards the next level, upgrade points). *(The game opens on it, with the forest still behind. Profile: level badge, XP bar, rounds, wins and best time. Forests: The Little Wood to play, and Pine Hollow, The Swamp and City Park shown locked. Enter plays.)*
+- [x] **Levels and upgrade points** – Each level-up gives one point to spend on permanent upgrades that last across the whole game. *(Levels need 150, 250, 350… XP, so about one a round at first. Six upgrades, 1 point a rank: Thrifty threads (growing costs 1 spore less, 2 ranks), Rich caps (+20% spores from mushrooms), Mighty bursts (+1 damage and +0.3 tiles reach), Eager growth (creep +25%), Tough threads (beetles eat 25% slower), Head start (+15 spores at the start), 3 ranks each. Not saved yet: a reload starts a new profile until Pack 7.)*
 
 ### Pack 7 – Saving
 

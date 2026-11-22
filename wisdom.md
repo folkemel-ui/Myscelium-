@@ -26,6 +26,9 @@ Things learned while building Mycelium that are worth knowing before the next ch
   what happened through `game.events` (hits, defeats); the view empties the list as it draws, and
   the game keeps only the last 200 if nobody does (tests, the playthrough). The shapes of the
   animations are plain functions in `render/anim.ts`, tested.
+- `src/game/progress.ts` holds XP, levels and upgrades. Upgrades reach a round only through its
+  `Mods` (`createLevel1(seed, modsFor(profile))`); the rules read `g.mods`, never the upgrade list.
+  With no upgrades the Mods equal the constants, so the balance playthrough is unchanged.
 - `src/ui/App.tsx` is the React panel. It copies a snapshot of the game about 10 times a second;
   React never re-renders every frame.
 - In development the game is on `window.game` and the view on `window.view`. `view.inspect = { x, y, scale }`
@@ -70,5 +73,7 @@ Things learned while building Mycelium that are worth knowing before the next ch
 - The preview pane refuses fullscreen ("Permissions check failed"); test fullscreen in a real browser.
 - Editing App.tsx hot-reloads it, which can start a new game or leave `window.game` pointing at an
   old one. Reload the page before testing after an edit.
+- A general rule like `.card p { color }` beats a single class like `.level-up { color }`; give
+  special text inside cards a selector that names the card too (`.card .level-up`).
 - Enemies need a way to leave. Before beetles got full and walked off, they piled up to 195 on
   one map.
