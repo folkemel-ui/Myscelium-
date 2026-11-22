@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { LEVELS } from '../game/progress';
 import { coverage } from '../game/sim';
 import type { SlotSave } from '../game/save';
 import type { Game } from '../game/world';
@@ -31,7 +32,8 @@ export function SaveDialog({ slots, game, onSave, onClose }: {
   onSave: (slot: number, name: string) => void;
   onClose: () => void;
 }) {
-  const [name, setName] = useState(`The Little Wood · ${Math.round(coverage(game) * 100)}%`);
+  const forest = LEVELS.find((l) => l.id === game.level)?.name ?? 'The forest';
+  const [name, setName] = useState(`${forest} · ${Math.round(coverage(game) * 100)}%`);
   const [confirm, setConfirm] = useState<number | null>(null);
   const label = name.trim() || 'My round';
   return (

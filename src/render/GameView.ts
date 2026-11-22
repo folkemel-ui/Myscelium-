@@ -11,7 +11,7 @@ import { NetworkView } from './NetworkView';
 import { TripView } from './TripView';
 import { blackLight } from './trip';
 import {
-  CANOPY_GREENS, crownLayout, hash, lightAt, lightSpots, logLook, sway, TS, type Crown, type LightSpot,
+  CANOPY_GREENS, crownLayout, hash, PINE_GREENS, lightAt, lightSpots, logLook, sway, TS, type Crown, type LightSpot,
 } from './forestLayout';
 
 export type Tool = 'grow' | 'mushroom';
@@ -366,6 +366,7 @@ export class GameView {
 // A tree crown seen from above: a dark base, clumps of leaves lighter towards the top left, and a
 // few glints. Drawn round its own centre so it can sway.
 function crownShape(c: Crown) {
+  if (c.pine) return pineShape(c);
   const s = new Graphics();
   const base = CANOPY_GREENS[c.green];
   s.circle(0, 0, c.r * 0.85).fill(shade(base, 0.6));
@@ -379,5 +380,27 @@ function crownShape(c: Crown) {
   }
   for (const b of c.blobs) s.circle(b.dx, b.dy, b.r).fill(shade(base, 0.75 + 0.45 * b.light));
   for (const p of c.specks) s.circle(p.dx, p.dy, p.r).fill({ color: 0xe8ffd0, alpha: 0.2 });
+  return s;
+}
+
+// A pine from above: layers of spiky star shapes, darker at the rim and lighter to the top, with a
+// pale tip in the middle.
+function pineShape(c: Crown) {
+  const s = new Graphics();
+  const base = PINE_GREENS[c.green % PINE_GREENS.length];
+  const layers = 4;
+  for (let k = 0; k < layers; k++) {
+    const r = c.r * (1 - k * 0.22);
+    const points = 9 + (k % 2);
+    const turn = c.edge + k * 0.35;
+    const path: number[] = [];
+    for (let p = 0; p < points * 2; p++) {
+      const a = turn + (p / (points * 2)) * Math.PI * 2;
+      const rr = p % 2 === 0 ? r : r * 0.72;
+      path.push(Math.cos(a) * rr - k * 0.6, Math.sin(a) * rr - k * 0.6);
+    }
+    s.poly(path).fill(shade(base, 0.62 + 0.16 * k));
+  }
+  s.circle(-2.2, -2.2, 1.6).fill({ color: 0xd8ffd0, alpha: 0.35 });
   return s;
 }

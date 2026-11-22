@@ -169,7 +169,7 @@ function creep(g: Game, dt: number) {
 export function swarmSize(g: Game) {
   const share = Math.min(1, coverage(g) / C.WIN_COVERAGE);
   const most = Math.min(C.SWARM_MAX, 1 + 2 * share + g.time / 120);
-  return Math.max(1, Math.min(C.SWARM_MAX, 1 + Math.floor(g.rng() * most)));
+  return Math.max(g.rules.swarmMin, Math.min(C.SWARM_MAX, 1 + Math.floor(g.rng() * most)));
 }
 
 export function newBeetle(g: Game, x: number, y: number): Beetle {
@@ -177,21 +177,30 @@ export function newBeetle(g: Game, x: number, y: number): Beetle {
   const r = g.rng();
   const motherOk = g.time >= C.AIM_MOTHER_FROM; // none go for the mother in the first minute
   const aim = r < C.AIM_MOTHER ? (motherOk ? 'mother' : 'mushroom') : r < C.AIM_MOTHER + C.AIM_MUSHROOM ? 'mushroom' : 'any';
-  const hp = C.BEETLE_HP + tough * C.TOUGHER_HP;
+  // Bark beetles (some levels only; no random draw where there are none, so other levels play the
+  // same) go for mushrooms, quicker and frailer.
+  const bark = g.rules.barkShare > 0 && g.rng() < g.rules.barkShare;
+  const hp = Math.max(2, C.BEETLE_HP + tough * C.TOUGHER_HP + (bark ? C.BARK_HP : 0));
   return {
-    id: g.nextId++, x, y, hp, maxHp: hp, target: -1, eatTimer: 0, retarget: 0, ate: 0, aim,
-    speed: C.BEETLE_SPEED * (1 + tough * C.TOUGHER_SPEED),
+    id: g.nextId++, x, y, hp, maxHp: hp, target: -1, eatTimer: 0, retarget: 0, ate: 0,
+    aim: bark ? 'mushroom' : aim,
+    kind: bark ? 'bark' : 'beetle',
+    speed: C.BEETLE_SPEED * (1 + tough * C.TOUGHER_SPEED) * (bark ? C.BARK_SPEED : 1),
     appetite: C.BEETLE_APPETITE + Math.min(C.HUNGRIER_MAX, Math.floor(g.time / C.HUNGRIER_EVERY)),
     born: g.time,
   };
 }
 
 function spawnBeetles(g: Game) {
-  if (g.time < C.FIRST_BEETLE_AT || g.time < g.nextBeetle || g.beetles.length >= C.MAX_BEETLES) return;
+  const r = g.rules;
+  if (g.time < r.firstBeetleAt || g.time < g.nextBeetle || g.beetles.length >= C.MAX_BEETLES) return;
   const share = Math.min(1, coverage(g) / C.WIN_COVERAGE);
-  const interval = C.BEETLE_INTERVAL_START - (C.BEETLE_INTERVAL_START - C.BEETLE_INTERVAL_MIN) * share;
+  const interval = r.intervalStart - (r.intervalStart - r.intervalMin) * share;
   g.nextBeetle = g.time + interval;
-  const side = Math.floor(g.rng() * 4);
+  // Which side: left, right, top or bottom, by the level's weights.
+  let pick = g.rng();
+  let side = 0;
+  while (side < 3 && pick >= r.sides[side]) pick -= r.sides[side++];
   const along = g.rng();
   const x = side === 0 ? -0.5 : side === 1 ? g.w + 0.5 : along * g.w;
   const y = side === 2 ? -0.5 : side === 3 ? g.h + 0.5 : along * g.h;

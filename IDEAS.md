@@ -92,18 +92,18 @@ of the new direction (points 1 and 2) before changing everything.
 - [x] **No more stutters from specks** – Single slow frames of 60–160 ms showed up in stress tests, likely from spores and floating specks being made and thrown away constantly. Reuse them instead (pooling). *(Twinkles and floating specks now reuse their sprites. In a 900-frame busy test (a tile grown every 4 frames, bursts, 15 beetles) only 2 frames went over 40 ms, the worst 48 ms (was 117); median 10.7 ms.)*
 - [x] **A cheaper network redraw** – Redrawing the settled network takes about 7.5 ms on a half-covered map, every 0.6 s while growing: a small regular stutter on slower computers. Make it cheaper or spread it out. *(Measured properly, a full redraw cost about 41 ms, most of it the graphics card rebuilding the shapes (the 7.5 ms above was only the drawing). The settled network is now drawn in 8×8-tile chunks and only chunks where something looks different are redrawn: about 6 ms for a new tile on a half-covered map.)*
 
-### Pack 11 – Level 2: Pine Hollow
+### Pack 11 – Level 2: Pine Hollow ✓
 
 Each forest brings one new idea to learn plus a step up in difficulty – not just faster bugs. Needs the
 stronger beetles from Pack 10.
 
-- [ ] **A stream through the middle** – Mycelium can't grow over water; a few fallen logs lie across it as bridges. Reach and hold the bridges to spread to the other side – and beetles can cut you off there.
-- [ ] **A pine forest** – Long rows and clumps of pines instead of round clusters, on a darker, cooler floor of needles, so it looks different at once. (Pines suit the shelf fungus from Pack 13.)
-- [ ] **Fewer, bigger logs** – Acidic needles mean fewer rotting logs, but each holds more nutrients: reaching them is a race.
-- [ ] **Harder beetles** – They arrive after 15 s instead of 25 s, every 9 s down to 3 s instead of 12 down to 3.5, in pairs; and a new kind, the bark beetle, goes for mushrooms rather than threads.
-- [ ] **A front to hold** – The mother starts near one edge, and beetles come mostly from the far side.
-- [ ] **A bigger map** – 56×36 instead of 48×32, goal 50% as before.
-- [ ] **Unlocking** – Win The Little Wood once; the menu then shows Pine Hollow open with a line on what's new ("A stream splits the forest. Hold the bridges.").
+- [x] **A stream through the middle** – Mycelium can't grow over water; a few fallen logs lie across it as bridges. Reach and hold the bridges to spread to the other side – and beetles can cut you off there. *(A stream two tiles wide winds from top to bottom a third of the way across, never shifting more than a tile a row so there's no gap; three fallen-log bridges cross it, top, middle and bottom. The mother's bank holds well under half the ground, so the bridges must be crossed to win (tested on five maps, with and without bridges). Drawn as a flowing blue stream with muddy banks and ripples, bridges as one log each, reaching onto both banks.)*
+- [x] **A pine forest** – Long rows and clumps of pines instead of round clusters, on a darker, cooler floor of needles, so it looks different at once. (Pines suit the shelf fungus from Pack 13.) *(11 rows of pines and 7 clumps, drawn from above as layered, spiky stars in five dark greens; the floor is darker and cooler, covered in needle clusters and pine cones.)*
+- [x] **Fewer, bigger logs** – Acidic needles mean fewer rotting logs, but each holds more nutrients: reaching them is a race. *(8 logs of 60 nutrients, two near the start, against about 17 of 30 in the Little Wood.)*
+- [x] **Harder beetles** – They arrive after 15 s instead of 25 s, every 9 s down to 3 s instead of 12 down to 3.5, in pairs; and a new kind, the bark beetle, goes for mushrooms rather than threads. *(Adjusted to Pack 10's stronger beetles: from 15 s (Little Wood 25 s), every 6 s down to 2 s (8 to 2.5), swarms of 2 at least. A quarter are bark beetles: red-brown and smaller, they go for mushrooms, 30% faster with 1 less health.)*
+- [x] **A front to hold** – The mother starts near one edge, and beetles come mostly from the far side. *(The mother starts 6 tiles from the left edge; swarms come from the right 60% of the time, top and bottom 18% each, left 4%.)*
+- [x] **A bigger map** – 56×36 instead of 48×32, goal 50% as before. *(Scripted players on five maps: sharp wins in 3:09–3:50 beating 46–67 beetles; casual wins in 3:17–3:57 losing 1–7 mushrooms; nobody playing loses in 1:14–1:32.)*
+- [x] **Unlocking** – Win The Little Wood once; the menu then shows Pine Hollow open with a line on what's new ("A stream splits the forest. Hold the bridges."). *(The profile keeps which forests are won and a best time per forest, shown on each forest's row; profiles from before count a win as The Little Wood won. The end screen says "New forest open: Pine Hollow!" the first time. Saves remember their forest.)*
 
 ### Pack 12 – A deeper profile
 

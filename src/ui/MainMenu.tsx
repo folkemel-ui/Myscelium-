@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { LEVELS, rank, UPGRADES, xpToNext, type Profile, type UpgradeId } from '../game/progress';
+import { forestOpen, LEVELS, rank, UPGRADES, xpToNext, type Profile, type UpgradeId } from '../game/progress';
 import type { SavedRound, SlotSave } from '../game/save';
 import { SlotCard } from './SaveDialog';
 import { formatTime } from './SpreadChart';
@@ -41,7 +41,7 @@ export function MainMenu(p: MenuProps) {
             <dl className="tallies">
               <div><dt>Rounds</dt><dd>{profile.rounds}</dd></div>
               <div><dt>Wins</dt><dd>{profile.wins}</dd></div>
-              <div><dt>Best time</dt><dd>{profile.bestTime === null ? '–' : formatTime(profile.bestTime)}</dd></div>
+              <div><dt>Forests won</dt><dd>{profile.forestsWon.length} of {LEVELS.filter((l) => l.playable).length}</dd></div>
             </dl>
             <Backup onBackup={p.onBackup} onRestore={p.onRestore} />
           </section>
@@ -52,22 +52,29 @@ export function MainMenu(p: MenuProps) {
               <div className="level-row continue">
                 <div>
                   <strong>Continue your round</strong>
-                  <small>The Little Wood · {formatTime(unfinished.time)} · {Math.round(held * 100)}% held</small>
+                  <small>{LEVELS.find((l) => l.id === unfinished.level)?.name ?? 'The Little Wood'} · {formatTime(unfinished.time)} · {Math.round(held * 100)}% held</small>
                 </div>
                 <button className="play" onClick={p.onContinue}>Continue</button>
               </div>
             )}
-            {LEVELS.map((l) => (
-              <div key={l.id} className={`level-row${l.playable ? '' : ' locked'}`}>
-                <div>
-                  <strong>{l.id}. {l.name}</strong>
-                  <small>{l.about}</small>
+            {LEVELS.map((l) => {
+              const open = forestOpen(profile, l);
+              const best = profile.bestTimes[l.id];
+              return (
+                <div key={l.id} className={`level-row${open ? '' : ' locked'}`}>
+                  <div>
+                    <strong>{l.id}. {l.name}</strong>
+                    <small>
+                      {!l.playable ? 'Coming later' : open ? l.about : l.opens}
+                      {open && best !== undefined && <> · best {formatTime(best)}</>}
+                    </small>
+                  </div>
+                  {open
+                    ? <button className={unfinished ? '' : 'play'} onClick={() => p.onPlay(l.id)}>{unfinished ? 'New round' : 'Play'}</button>
+                    : <span className="lock">Locked</span>}
                 </div>
-                {l.playable
-                  ? <button className={unfinished ? '' : 'play'} onClick={() => p.onPlay(l.id)}>{unfinished ? 'New round' : 'Play'}</button>
-                  : <span className="lock">Locked</span>}
-              </div>
-            ))}
+              );
+            })}
           </section>
 
           <section className="saves" aria-label="Saved rounds">

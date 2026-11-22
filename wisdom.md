@@ -26,6 +26,13 @@ Things learned while building Mycelium that are worth knowing before the next ch
   what happened through `game.events` (hits, defeats); the view empties the list as it draws, and
   the game keeps only the last 200 if nobody does (tests, the playthrough). The shapes of the
   animations are plain functions in `render/anim.ts`, tested.
+- Forests: `createLevel(level, seed, mods)` in world.ts makes one (1 The Little Wood, 2 Pine Hollow).
+  Each round carries its `level`, `biome` (how it looks) and `rules` (when and how beetles come);
+  the rules read `g.rules`, never the constants, for those. A level's rules only use extra random
+  draws when it needs them, so other levels play exactly the same (the Little Wood's balance
+  stayed identical through Pack 11).
+- "Level" means two things: the player's level (profile) and a forest (map). In code the map is
+  `level`/`forest` on the game, `forestsWon`/`bestTimes` on the profile.
 - `src/game/progress.ts` holds XP, levels and upgrades. Upgrades reach a round only through its
   `Mods` (`createLevel1(seed, modsFor(profile))`); the rules read `g.mods`, never the upgrade list.
   With no upgrades the Mods equal the constants, so the balance playthrough is unchanged.
@@ -116,5 +123,7 @@ Things learned while building Mycelium that are worth knowing before the next ch
   a screenshot while drawn fine. Put what you want to see near the middle (`view.inspect`).
 - React (in development) starts the app twice; anything handed out from the async view creation
   (like `window.view`) must be the one kept, not the one thrown away.
+- Check a map's goal against its shape: Pine Hollow's first stream left 53–56% of the ground on the
+  mother's bank, so the bridges (the whole point) were never needed. A test now guards it.
 - Enemies need a way to leave. Before beetles got full and walked off, they piled up to 195 on
   one map.

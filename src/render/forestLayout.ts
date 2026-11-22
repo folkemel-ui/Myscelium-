@@ -33,7 +33,10 @@ export interface Crown {
   blobs: Blob[]; // the clumps of leaves that make up the crown, darkest first
   specks: Blob[]; // small glints of light on single leaves, mostly on the lit side
   edge: number; // turns the ring of small clumps round the rim, so crowns differ
+  pine: boolean; // a pine seen from above: layered, star-shaped
 }
+
+export const PINE_GREENS = [0x1f4a3c, 0x24513f, 0x1c4436, 0x2a5a44, 0x234a46];
 
 export const CANOPY_GREENS = [0x2f6b34, 0x3a7a35, 0x2c5f3f, 0x4a7f2e, 0x336a4a];
 
@@ -45,7 +48,8 @@ export function crownLayout(g: Game): Crown[] {
     if (g.tiles[i] !== TILE.TREE) continue;
     const tx = i % g.w;
     const ty = (i - tx) / g.w;
-    const r = TS * (0.58 + 0.32 * hash(g, i, 1));
+    const pine = g.biome === 'pine';
+    const r = TS * (pine ? 0.55 + 0.22 * hash(g, i, 1) : 0.58 + 0.32 * hash(g, i, 1));
     const blobs: Blob[] = [];
     const count = 4 + Math.floor(hash(g, i, 2) * 3);
     for (let k = 0; k < count; k++) {
@@ -71,6 +75,7 @@ export function crownLayout(g: Game): Crown[] {
         return { dx: Math.cos(a) * d, dy: Math.sin(a) * d, r: 0.8 + hash(g, i, 60 + k) * 0.9, light: 1 };
       }),
       edge: hash(g, i, 7) * Math.PI * 2,
+      pine,
     });
   }
   return crowns.sort((a, b) => a.y - b.y);

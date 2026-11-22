@@ -46,6 +46,8 @@ export const TOUGHER_SPEED = 0.08;
 export const TOUGHER_MAX = 3; // steps at most (+3 health, +24% speed)
 export const HUNGRIER_EVERY = 90; // seconds; each one adds a tile to what a new beetle eats
 export const HUNGRIER_MAX = 3;
+export const BARK_SPEED = 1.3; // bark beetles are this much faster...
+export const BARK_HP = -1; // ...and have this much less health (2 at least)
 
 // Mushrooms puff spores at beetles that come close.
 export const PUFF_RANGE = 2.2; // tiles
@@ -56,6 +58,13 @@ export const PUFF_INTERVAL = 3;
 export const BURST_RANGE = 3.5;
 export const BURST_DAMAGE = 3;
 export const BURST_COOLDOWN = 6;
+
+// Pine Hollow (level 2): a bigger forest split by a stream, with fewer but richer logs.
+export const PINE_W = 56;
+export const PINE_H = 36;
+export const PINE_LOGS = 8;
+export const PINE_LOG_NUTRIENTS = 60;
+export const PINE_BRIDGES = 3;
 
 // Hold this share of the forest floor to win.
 export const WIN_COVERAGE = 0.5;

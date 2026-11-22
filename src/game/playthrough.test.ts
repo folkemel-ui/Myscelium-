@@ -6,10 +6,10 @@
 import { test } from 'vitest';
 import * as C from './constants';
 import { burst, canGrowAt, coverage, growMycelium, plantMushroom, step } from './sim';
-import { createLevel1, idx, TILE, type Game } from './world';
+import { createLevel, idx, TILE, type Game } from './world';
 
-function play(seed: number, every: number, burstsPerTurn: number) {
-  const g = createLevel1(seed);
+function play(level: number, seed: number, every: number, burstsPerTurn: number) {
+  const g = createLevel(level, seed);
   let eaten = 0;
   let lostMushrooms = 0;
   let turn = 0;
@@ -51,12 +51,12 @@ function act(g: Game, burstsPerTurn: number) {
 const line = (r: ReturnType<typeof play>) =>
   `${r.g.status} at ${Math.round(r.g.time)}s, beaten ${r.g.kills}, tiles eaten ${r.eaten}, mushrooms lost ${r.lostMushrooms}`;
 
-test('playthrough', { timeout: 240000 }, () => {
+for (const level of [1, 2]) test(`playthrough, forest ${level}`, { timeout: 300000 }, () => {
   for (const seed of [1, 2, 3, 4, 5]) {
-    const sharp = play(seed, 1, 99);
-    const casual = play(seed, 3, 1);
-    const idle = createLevel1(seed);
+    const sharp = play(level, seed, 1, 99);
+    const casual = play(level, seed, 3, 1);
+    const idle = createLevel(level, seed);
     while (idle.status === 'playing' && idle.time < 900) step(idle, 0.1);
-    console.log(`seed ${seed}: sharp ${line(sharp)} | casual ${line(casual)} | idle ${idle.status} at ${Math.round(idle.time)}s, held ${Math.round(coverage(idle) * 100)}%`);
+    console.log(`forest ${level} seed ${seed}: sharp ${line(sharp)} | casual ${line(casual)} | idle ${idle.status} at ${Math.round(idle.time)}s, held ${Math.round(coverage(idle) * 100)}%`);
   }
 });

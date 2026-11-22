@@ -19,7 +19,8 @@ export function thumbnail(g: Game): string {
       const t = g.tiles[i];
       ctx.fillStyle = g.mycelium[i]
         ? hex(glowAt(g.noise[i]))
-        : t === TILE.TREE ? '#2f5f34' : t === TILE.ROCK ? '#8a8a86' : t === TILE.LOG ? '#7a4a26' : '#5e4c36';
+        : t === TILE.TREE ? (g.biome === 'pine' ? '#25483a' : '#2f5f34') : t === TILE.ROCK ? '#8a8a86' : t === TILE.LOG ? '#7a4a26'
+        : t === TILE.WATER ? '#2f6fa8' : t === TILE.BRIDGE ? '#8a5a32' : g.biome === 'pine' ? '#4c4236' : '#5e4c36';
       ctx.fillRect(x, y, PX, PX);
     }
     for (const m of g.mushrooms) {

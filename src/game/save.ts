@@ -4,7 +4,7 @@
 // that changed: tiles, the network, logs, mushrooms, beetles, counts, and the random number
 // generator's state, so a loaded round carries on exactly as it would have.
 import { newProfile, UPGRADES, type Profile, type UpgradeId } from './progress';
-import { createLevel1, DEFAULT_MODS, type Beetle, type Game, type Mods, type Mushroom } from './world';
+import { createLevel, DEFAULT_MODS, type Beetle, type Game, type Mods, type Mushroom } from './world';
 
 export const SAVE_VERSION = 1;
 export const SLOT_COUNT = 3;
@@ -39,7 +39,7 @@ export function saveRound(g: Game): SavedRound {
   });
   return {
     v: SAVE_VERSION,
-    level: 1,
+    level: g.level,
     seed: g.seed,
     rng: g.rng.getState(),
     mods: { ...g.mods },
@@ -69,9 +69,10 @@ export function loadRound(data: unknown): Game | null {
   if (!s || typeof s !== 'object' || s.v !== SAVE_VERSION || !isNum(s.seed) || !isNum(s.rng)) return null;
   const mods = { ...DEFAULT_MODS, ...(s.mods ?? {}) };
   if (!Object.values(mods).every(isNum)) return null;
-  const g = createLevel1(s.seed, mods);
+  const level = s.level === 2 ? 2 : 1;
+  const g = createLevel(level, s.seed, mods);
   const n = g.w * g.h;
-  if (typeof s.tiles !== 'string' || s.tiles.length !== n || !/^[0-3]+$/.test(s.tiles)) return null;
+  if (typeof s.tiles !== 'string' || s.tiles.length !== n || !/^[0-5]+$/.test(s.tiles)) return null;
   if (typeof s.mycelium !== 'string' || s.mycelium.length !== n || !/^[01]+$/.test(s.mycelium)) return null;
   if (![s.spores, s.nutrients, s.time, s.nextBeetle, s.creep, s.kills, s.nextId, s.nextSample].every(isNum)) return null;
   if (!Array.isArray(s.mushrooms) || !Array.isArray(s.beetles) || !Array.isArray(s.logs) || !Array.isArray(s.history)) return null;
@@ -116,7 +117,23 @@ export function loadProfile(data: unknown): Profile {
     rounds: whole(p.rounds, 0) ?? 0,
     wins: whole(p.wins, 0) ?? 0,
     bestTime: isNum(p.bestTime) && p.bestTime > 0 ? p.bestTime : null,
+    ...forestRecords(p),
   };
+}
+
+// Forests won and best times. Profiles from before there were two forests had only wins and one
+// best time, all in The Little Wood.
+function forestRecords(p: Partial<Profile>): Pick<Profile, 'forestsWon' | 'bestTimes'> {
+  const won = new Set<number>();
+  if (Array.isArray(p.forestsWon)) for (const f of p.forestsWon) if (f === 1 || f === 2) won.add(f);
+  if (isNum(p.wins) && p.wins > 0) won.add(1);
+  const bestTimes: Profile['bestTimes'] = {};
+  for (const f of [1, 2]) {
+    const t = p.bestTimes?.[f];
+    if (isNum(t) && t > 0) bestTimes[f] = t;
+  }
+  if (bestTimes[1] === undefined && isNum(p.bestTime) && p.bestTime > 0) bestTimes[1] = p.bestTime;
+  return { forestsWon: [...won].sort(), bestTimes };
 }
 
 // --- Where saves are kept ---

@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { MUSHROOM_COST, WIN_COVERAGE } from '../game/constants';
 import {
-  buyUpgrade, finishRound, modsFor, totalXp, xpToNext, type Profile, type UpgradeId, type XpLine,
+  buyUpgrade, finishRound, forestOpen, LEVELS, modsFor, totalXp, xpToNext, type Profile, type UpgradeId, type XpLine,
 } from '../game/progress';
 import { coverage, sporesPerSecond, step, underAttack } from '../game/sim';
-import { createLevel1, type Game, type Mods, type RoundStats } from '../game/world';
+import { createLevel, type Game, type Mods, type RoundStats } from '../game/world';
 import { GameView, type Tool } from '../render/GameView';
 import {
   browserStore, clearAutosave, clearSlot, loadRound, makeBackup, readAutosave, readProfile, readSlot, restoreBackup,
@@ -73,7 +73,7 @@ const AUTOSAVE_EVERY = 5000; // ms
 const store = browserStore;
 const readSlots = () => Array.from({ length: SLOT_COUNT }, (_, k) => readSlot(store, k + 1));
 
-const newGame = (mods?: Mods) => createLevel1(Math.floor(Math.random() * 1e9), mods);
+const newGame = (level = 1, mods?: Mods) => createLevel(level, Math.floor(Math.random() * 1e9), mods);
 
 // What a finished round earned, for the end screen.
 interface Summary {
@@ -81,6 +81,7 @@ interface Summary {
   before: Profile;
   after: Profile;
   levelsGained: number;
+  opened: string | null; // a forest this round opened
 }
 
 export function App() {
@@ -189,8 +190,9 @@ export function App() {
     if (snap.status === 'playing' || screen !== 'game' || awarded.current === game.current) return;
     awarded.current = game.current;
     const g = game.current;
-    const result = finishRound(profile, { won: g.status === 'won', held: coverage(g), kills: g.kills, time: g.time });
-    setSummary({ lines: result.lines, before: profile, after: result.profile, levelsGained: result.levelsGained });
+    const result = finishRound(profile, { forest: g.level, won: g.status === 'won', held: coverage(g), kills: g.kills, time: g.time });
+    const opened = LEVELS.find((l) => !forestOpen(profile, l) && forestOpen(result.profile, l))?.name ?? null;
+    setSummary({ lines: result.lines, before: profile, after: result.profile, levelsGained: result.levelsGained, opened });
     setProfile(result.profile);
   }, [snap.status, screen]);
 
@@ -248,7 +250,9 @@ export function App() {
     setSaving(false);
     restartArmed.current = 0;
   };
-  const restart = () => startRound(newGame(modsFor(profile)), false);
+  // A new round in a forest; restarting plays the same forest again.
+  const play = (level: number) => startRound(newGame(level, modsFor(profile)), false);
+  const restart = () => play(game.current.level);
   const loadSaved = (round: SavedRound) => {
     const g = loadRound(round);
     if (g) startRound(g, true);
@@ -432,7 +436,7 @@ export function App() {
 
       {screen === 'menu' && (
         <MainMenu
-          profile={profile} onPlay={restart} onBuy={buy}
+          profile={profile} onPlay={play} onBuy={buy}
           autosave={autosave} onContinue={() => autosave && loadSaved(autosave)}
           slots={slots} onLoadSlot={(n) => slots[n - 1] && loadSaved(slots[n - 1]!.round)} onDeleteSlot={deleteSlot}
           onBackup={downloadBackup} onRestore={loadBackup}
@@ -511,6 +515,7 @@ function XpSummary({ summary }: { summary: Summary }) {
         <div className="bar"><div style={{ width: `${(after.xp / need) * 100}%` }} /></div>
         <span>{after.xp} / {need}</span>
       </div>
+      {summary.opened && <p className="level-up">New forest open: {summary.opened}!</p>}
       {levelsGained > 0 && (
         <p className="level-up">
           Level up! +{levelsGained} upgrade point{levelsGained > 1 ? 's' : ''} to spend in the Main Menu

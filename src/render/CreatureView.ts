@@ -238,7 +238,7 @@ export class CreatureView {
       const y = b.y * TS;
       let bug = this.bugs.get(b.id);
       if (!bug) {
-        const parts = beetleParts();
+        const parts = beetleParts(b.kind);
         bug = { root: parts.root, parts, walk: 0, flash: -Infinity, x, y, angle: 0 };
         this.bugs.set(b.id, bug);
         this.beetleLayer.addChild(bug.root);
@@ -256,7 +256,7 @@ export class CreatureView {
       bug.parts.flash.alpha = 0.85 * flash;
       setCracks(bug.parts, b.hp / (b.maxHp ?? BEETLE_HP));
       // Tougher (later) beetles are a little bigger.
-      bug.root.scale.set(1 + 0.07 * ((b.maxHp ?? BEETLE_HP) - BEETLE_HP));
+      bug.root.scale.set((b.kind === 'bark' ? 0.85 : 1) * (1 + 0.07 * ((b.maxHp ?? BEETLE_HP) - BEETLE_HP)));
       // A hit knocks it back a touch.
       const knock = flash * 1.5;
       bug.root.position.set(x - Math.cos(bug.angle) * knock, y - Math.sin(bug.angle) * knock);
@@ -411,7 +411,8 @@ interface BeetleParts {
   crackLevel: number;
 }
 
-function beetleParts(): BeetleParts {
+function beetleParts(kind: 'beetle' | 'bark' = 'beetle'): BeetleParts {
+  const bark = kind === 'bark';
   const root = new Container();
   const limbs = new Graphics();
   const shell = new Graphics();
@@ -419,11 +420,11 @@ function beetleParts(): BeetleParts {
   const cracks = new Graphics();
   const flash = new Graphics();
 
-  shell.ellipse(-1, 0, 6.6, 4.9).fill(0x2a3550).stroke({ width: 0.8, color: 0x161c2e });
+  shell.ellipse(-1, 0, 6.6, 4.9).fill(bark ? 0x6b3a24 : 0x2a3550).stroke({ width: 0.8, color: bark ? 0x3a1c10 : 0x161c2e });
   shell.ellipse(-2, -1.9, 3.4, 1.3).fill({ color: 0xffffff, alpha: 0.22 });
   shell.ellipse(-2.4, 2.1, 2.2, 0.8).fill({ color: 0x7f9fff, alpha: 0.18 });
   shell.moveTo(-7, 0).lineTo(4.6, 0).stroke({ width: 0.8, color: 0x0d1020 });
-  shell.ellipse(5, 0, 2.8, 3.4).fill(0x232c42);
+  shell.ellipse(5, 0, 2.8, 3.4).fill(bark ? 0x4a2818 : 0x232c42);
   shell.circle(8.2, 0, 2.3).fill(0x1a1a22);
 
   belly.ellipse(-1, 0, 6.4, 4.7).fill(0x6a5a46);

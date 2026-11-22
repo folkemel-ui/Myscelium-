@@ -6,10 +6,22 @@ import { crownLayout, floorScatter, forestRng, hash, rockOutline, TS } from './f
 
 export const FLOOR_RES = 2; // canvas pixels per world pixel, so it stays sharp when scaled up
 
-const SOIL = '#6b573d';
-const PATCHES = ['#5a4630', '#7f6646', '#665a48', '#5c6338', '#735237', '#544232'];
-const LEAVES = ['#8a6a35', '#a07a3a', '#6f5a2e', '#7a7a3a', '#9a5a2e', '#b08a48'];
-const TUFTS = ['#6f8a3a', '#5f7a34', '#7f9a44'];
+// Each kind of forest has its own floor: the Little Wood's warm soil and leaves, and Pine Hollow's
+// darker, cooler ground covered in needles and cones.
+const FLOORS = {
+  wood: {
+    soil: '#6b573d',
+    patches: ['#5a4630', '#7f6646', '#665a48', '#5c6338', '#735237', '#544232'],
+    leaves: ['#8a6a35', '#a07a3a', '#6f5a2e', '#7a7a3a', '#9a5a2e', '#b08a48'],
+    tufts: ['#6f8a3a', '#5f7a34', '#7f9a44'],
+  },
+  pine: {
+    soil: '#4d4236',
+    patches: ['#3f372e', '#5a4d3e', '#4a4a44', '#3e4736', '#56463a', '#363029'],
+    leaves: ['#8a5a2e', '#a0703a', '#6b4a2a', '#b08048', '#7a5a3a'],
+    tufts: ['#4f6a3a', '#3f5a34', '#5a7044'],
+  },
+};
 
 export function paintFloor(g: Game): HTMLCanvasElement {
   const canvas = document.createElement('canvas');
@@ -20,16 +32,18 @@ export function paintFloor(g: Game): HTMLCanvasElement {
   const W = g.w * TS;
   const H = g.h * TS;
   const rng = forestRng(g);
+  const look = FLOORS[g.biome];
+  const pine = g.biome === 'pine';
 
   // Soil: a base colour with large soft patches blended over it.
-  ctx.fillStyle = SOIL;
+  ctx.fillStyle = look.soil;
   ctx.fillRect(0, 0, W, H);
   const patches = Math.round((g.w * g.h) / 6);
   for (let k = 0; k < patches; k++) {
     const x = rng() * W;
     const y = rng() * H;
     const r = TS * (1.2 + rng() * 3);
-    softSpot(ctx, x, y, r, PATCHES[Math.floor(rng() * PATCHES.length)], 0.45);
+    softSpot(ctx, x, y, r, look.patches[Math.floor(rng() * look.patches.length)], 0.45);
   }
   // A fine grain of specks.
   for (let k = 0; k < g.w * g.h * 3; k++) {
@@ -40,15 +54,49 @@ export function paintFloor(g: Game): HTMLCanvasElement {
   // Shade under the trees (the crowns themselves are drawn on top, by Pixi, so they can sway).
   for (const c of crownLayout(g)) softSpot(ctx, c.x + 4, c.y + 5, c.r * 1.35, '#1c160c', 0.5);
 
-  // Leaves, twigs, pebbles and tufts, but not on rocks or under trunks.
+  paintWater(ctx, g, rng);
+
+  // Leaves (or needles), twigs, pebbles (or cones) and tufts, but not on rocks, water or under trunks.
   for (const s of floorScatter(g)) {
     const t = g.tiles[Math.floor(s.y / TS) * g.w + Math.floor(s.x / TS)];
-    if (t === TILE.ROCK || (t === TILE.TREE && s.kind === 'tuft')) continue;
+    if (t === TILE.ROCK || t === TILE.WATER || t === TILE.BRIDGE || (t === TILE.TREE && s.kind === 'tuft')) continue;
     ctx.save();
     ctx.translate(s.x, s.y);
     ctx.rotate(s.angle);
-    if (s.kind === 'leaf') {
-      ctx.fillStyle = LEAVES[Math.floor(s.tone * LEAVES.length)];
+    if (s.kind === 'leaf' && pine) {
+      // A few fallen needles lying together.
+      ctx.strokeStyle = look.leaves[Math.floor(s.tone * look.leaves.length)];
+      ctx.globalAlpha = 0.8;
+      ctx.lineWidth = 0.6;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      for (let k = 0; k < 3; k++) {
+        const a = (k - 1) * 0.35;
+        ctx.moveTo(0, 0);
+        ctx.lineTo(Math.cos(a) * 4.5 * s.size, Math.sin(a) * 4.5 * s.size);
+      }
+      ctx.stroke();
+    } else if (s.kind === 'pebble' && pine && s.tone < 0.6) {
+      // A pine cone: a brown oval with its scales.
+      const r = 1.6 + s.size;
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
+      ctx.beginPath();
+      ctx.ellipse(0.6, 0.8, r * 1.5, r, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#7a4e2a';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, r * 1.5, r, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(40, 20, 10, 0.6)';
+      ctx.lineWidth = 0.4;
+      ctx.beginPath();
+      for (let k = -1; k <= 1; k++) {
+        ctx.moveTo(k * r * 0.6, -r * 0.8);
+        ctx.lineTo(k * r * 0.6 + r * 0.3, r * 0.8);
+      }
+      ctx.stroke();
+    } else if (s.kind === 'leaf') {
+      ctx.fillStyle = look.leaves[Math.floor(s.tone * look.leaves.length)];
       ctx.globalAlpha = 0.75;
       ctx.beginPath();
       ctx.ellipse(0, 0, 2.4 * s.size, 1.2 * s.size, 0, 0, Math.PI * 2);
@@ -86,7 +134,7 @@ export function paintFloor(g: Game): HTMLCanvasElement {
       ctx.fill();
     } else {
       ctx.rotate(-s.angle); // grass grows upwards
-      ctx.strokeStyle = TUFTS[Math.floor(s.tone * TUFTS.length)];
+      ctx.strokeStyle = look.tufts[Math.floor(s.tone * look.tufts.length)];
       ctx.lineWidth = 0.8;
       ctx.lineCap = 'round';
       ctx.beginPath();
@@ -135,6 +183,86 @@ export function paintFloor(g: Game): HTMLCanvasElement {
     ctx.restore();
   }
   return canvas;
+}
+
+// The stream: muddy banks, then water with lighter ripples; and the fallen-log bridges across it.
+function paintWater(ctx: CanvasRenderingContext2D, g: Game, rng: () => number) {
+  const water: number[] = [];
+  const bridges: number[] = [];
+  g.tiles.forEach((t, i) => {
+    if (t === TILE.WATER) water.push(i);
+    if (t === TILE.BRIDGE) bridges.push(i);
+  });
+  if (!water.length && !bridges.length) return;
+  const xy = (i: number) => [(i % g.w) * TS, Math.floor(i / g.w) * TS];
+  // Banks of wet, dark mud.
+  for (const i of [...water, ...bridges]) {
+    const [x, y] = xy(i);
+    softSpot(ctx, x + TS / 2, y + TS / 2, TS * 1.15, '#2a2118', 0.55);
+  }
+  // The water itself, as overlapping rounds so the stream flows instead of stepping from tile to
+  // tile, deeper in the middle.
+  ctx.fillStyle = '#2f6a96';
+  ctx.beginPath();
+  for (const i of [...water, ...bridges]) {
+    const [x, y] = xy(i);
+    ctx.moveTo(x + TS / 2 + TS * 0.78, y + TS / 2);
+    ctx.arc(x + TS / 2, y + TS / 2, TS * 0.78, 0, Math.PI * 2);
+  }
+  ctx.fill();
+  for (const i of water) {
+    const [x, y] = xy(i);
+    softSpot(ctx, x + TS / 2, y + TS / 2, TS * 0.6, '#244f74', 0.6);
+  }
+  // Ripples: short pale curves drifting downstream.
+  ctx.strokeStyle = 'rgba(200, 230, 255, 0.28)';
+  ctx.lineWidth = 0.8;
+  ctx.beginPath();
+  for (const i of water) {
+    const [x, y] = xy(i);
+    for (let k = 0; k < 2; k++) {
+      const rx = x + 3 + rng() * (TS - 8);
+      const ry = y + 3 + rng() * (TS - 6);
+      ctx.moveTo(rx, ry);
+      ctx.quadraticCurveTo(rx + 2.5, ry + 1.5, rx + 5, ry);
+    }
+  }
+  ctx.stroke();
+  // Bridges: one fallen log lying across each run of bridge tiles, reaching onto both banks, with
+  // bark grain, a cut end and moss here and there.
+  for (const i of bridges) {
+    if (g.tiles[i - 1] === TILE.BRIDGE) continue; // drawn with the run it belongs to
+    let end = i;
+    while (g.tiles[end + 1] === TILE.BRIDGE) end++;
+    const [x, y] = xy(i);
+    const x0 = x - TS * 0.45;
+    const x1 = (end % g.w) * TS + TS * 1.45;
+    const top = y + TS * 0.2;
+    const thick = TS * 0.6;
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+    ctx.beginPath();
+    ctx.roundRect(x0 + 2, top + 3, x1 - x0, thick, thick / 2);
+    ctx.fill();
+    ctx.fillStyle = '#7d5230';
+    ctx.beginPath();
+    ctx.roundRect(x0, top, x1 - x0, thick, thick / 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(50, 30, 15, 0.7)';
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.moveTo(x0 + 4, top + thick * 0.3);
+    ctx.lineTo(x1 - 6, top + thick * 0.33);
+    ctx.moveTo(x0 + 4, top + thick * 0.68);
+    ctx.lineTo(x1 - 6, top + thick * 0.65);
+    ctx.stroke();
+    ctx.fillStyle = '#c8955c'; // the cut end
+    ctx.beginPath();
+    ctx.ellipse(x1 - thick * 0.35, top + thick / 2, thick * 0.3, thick * 0.42, 0, 0, Math.PI * 2);
+    ctx.fill();
+    for (let k = i; k <= end; k++) {
+      if (hash(g, k, 310) < 0.6) softSpot(ctx, (k % g.w) * TS + TS * (0.3 + 0.4 * hash(g, k, 311)), top + thick * 0.4, 3, '#6a9a3a', 0.9);
+    }
+  }
 }
 
 // A soft round spot that fades out to its edge.

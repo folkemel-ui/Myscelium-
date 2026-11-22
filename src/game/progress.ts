@@ -9,19 +9,22 @@ export interface LevelInfo {
   id: number;
   name: string;
   about: string;
-  playable: boolean;
+  playable: boolean; // made yet
+  opens?: string; // what it takes to open it, if it starts locked
+  needs?: number; // the forest that must be won first
 }
 
 export const LEVELS: LevelInfo[] = [
   { id: 1, name: 'The Little Wood', about: 'A small, quiet forest. Beetles come to feed.', playable: true },
-  { id: 2, name: 'Pine Hollow', about: 'Coming later', playable: false },
-  { id: 3, name: 'The Swamp', about: 'Coming later', playable: false },
-  { id: 4, name: 'City Park', about: 'Coming later', playable: false },
+  { id: 2, name: 'Pine Hollow', about: 'A stream splits the forest. Hold the bridges.', playable: true, needs: 1, opens: 'Win The Little Wood to open' },
+  { id: 3, name: 'The Swamp', about: '', playable: false },
+  { id: 4, name: 'City Park', about: '', playable: false },
 ];
 
 // --- XP ---
 
 export interface RoundResult {
+  forest?: number; // which forest (1 if missing)
   won: boolean;
   held: number; // share of the forest floor held at the end, 0..1
   kills: number;
@@ -87,10 +90,17 @@ export interface Profile {
   upgrades: Partial<Record<UpgradeId, number>>;
   rounds: number;
   wins: number;
-  bestTime: number | null; // the fastest win, in seconds
+  bestTime: number | null; // the fastest win in The Little Wood, in seconds (kept for old saves)
+  forestsWon: number[]; // forests won at least once
+  bestTimes: Partial<Record<number, number>>; // the fastest win in each forest, in seconds
 }
 
-export const newProfile = (): Profile => ({ level: 1, xp: 0, points: 0, upgrades: {}, rounds: 0, wins: 0, bestTime: null });
+export const newProfile = (): Profile => ({
+  level: 1, xp: 0, points: 0, upgrades: {}, rounds: 0, wins: 0, bestTime: null, forestsWon: [], bestTimes: {},
+});
+
+// A forest can be played once it is made and the forest before it has been won.
+export const forestOpen = (p: Profile, l: LevelInfo) => l.playable && (l.needs === undefined || p.forestsWon.includes(l.needs));
 
 export const rank = (p: Profile, id: UpgradeId) => p.upgrades[id] ?? 0;
 
@@ -104,9 +114,15 @@ export function finishRound(p: Profile, r: RoundResult): { profile: Profile; lin
     level++;
   }
   const levelsGained = level - p.level;
-  const bestTime = r.won ? Math.min(p.bestTime ?? Infinity, r.time) : p.bestTime;
+  const forest = r.forest ?? 1;
+  const bestTimes = { ...p.bestTimes };
+  if (r.won) bestTimes[forest] = Math.min(bestTimes[forest] ?? Infinity, r.time);
+  const forestsWon = r.won && !p.forestsWon.includes(forest) ? [...p.forestsWon, forest].sort() : p.forestsWon;
   return {
-    profile: { ...p, xp, level, points: p.points + levelsGained, rounds: p.rounds + 1, wins: p.wins + (r.won ? 1 : 0), bestTime },
+    profile: {
+      ...p, xp, level, points: p.points + levelsGained, rounds: p.rounds + 1, wins: p.wins + (r.won ? 1 : 0),
+      bestTime: bestTimes[1] ?? null, forestsWon, bestTimes,
+    },
     lines,
     levelsGained,
   };
