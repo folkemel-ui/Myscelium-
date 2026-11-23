@@ -166,3 +166,28 @@ Home Screen the game fills the whole screen. These make that easy and safe.
 - Fruiting: release spores to a new, harder forest and keep **mutations** (a permanent upgrade tree).
 - Different forests: pine woods, swamp, jungle, and a city park at the end.
 - Stronger psychedelic effects as you progress: pulsing, rainbow shimmer, ripples, kaleidoscope colour.
+
+### A menu that feels like the game (not in a pack yet)
+
+The menu looks like a generic web dashboard: a grid of identical boxed cards in a system font, with
+pink-to-purple gradient buttons. Make it look grown, like the in-game panel. Start with a side-by-side
+test of the new direction (as in Pack 9) before changing everything.
+
+- **The forest as the background** – No big dark box over everything: the living forest fills the screen, slowly zoomed on the mother with the network pulsing, and the menu's parts float over it.
+- **One focus, not a grid of cards** – Profile, Forests and Saved rounds are three boxes of equal weight. Make playing the clear focus and everything else secondary.
+- **The panel's organic style** – Use the in-game panel's uneven, grown-looking corners, faint thread texture and breathing glow, so the menu and the round match.
+- **Fewer borders** – Almost everything has a 1 px border inside another bordered box (three or four deep in the upgrades). Separate things with space, light and texture instead.
+- **A real title** – "Mycelium" as a drawn wordmark (letters that sprout threads, a small cap over the i, or rounded hand-drawn letters) glowing in the scheme's colours, instead of a system font with a lime gradient.
+- **A font with character** – One rounded or slightly organic display font for headings; the system font stays for small text.
+- **No pink-to-purple gradient** – The Play buttons and level circle use the most "AI app" colour pair there is. Use the scheme's own glow on a dark, textured button, like a glowing spore pod.
+- **Forests as a path** – Each forest as a small painted picture of its map (the stream in Pine Hollow, the pines), joined to the next by a glowing thread; locked forests as dim silhouettes instead of a dashed "Locked" box plus "Coming later".
+- **One big Play button** – Pick a forest, then one large, glowing button plays it, instead of a Play button on every row (and Continue as yet another).
+- **The mother on the profile** – Show your own mother mushroom with the markings she has earned, in your colour scheme, with your name under her, instead of a gradient circle saying "Level 6". The XP bar as a thread growing towards her next marking.
+- **No empty space in the profile** – Tighten it, or fill it with your last round or a picture of what the next level opens.
+- **Upgrades as a drawn tree** – Nodes on a branching mycelium tree, three branches growing from a centre, lit up when bought; tapping a node shows what it does. On its own screen behind an "Upgrades (2 points)" button that glows when there are points to spend.
+- **Ranks as glowing spores** – An upgrade's ranks as small glowing spores along its branch, instead of dots in the corner.
+- **Backup and code tucked away** – "Back up to a file", "Load a backup" and "Move progress with a code" move to a small settings screen behind a gear.
+- **Gentle motion** – Spores drifting past, the Play button breathing, the title's glow slowly shifting.
+- **Into the forest** – Pressing Play zooms into the forest as the menu dissolves, instead of the menu just vanishing.
+- **A phone layout** – On a phone, not a squeezed desktop: the mother and Play on the first screen, with forests, upgrades and saves as tabs or pages to swipe.
+
