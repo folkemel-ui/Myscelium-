@@ -158,7 +158,8 @@ Home Screen the game fills the whole screen. These make that easy and safe.
 
 ## Later (not in a pack yet)
 
-- Infected beetles and squirrels that join your side and attack.
+- **Infected beetles (an upgrade in the profile's tree)** – Once bought, a beetle beaten by a burst isn't just beaten: the spores take it over and it fights for you for a while (walks to the nearest wild beetle and bites it, never eats mycelium), then collapses and feeds the network. Only a few at once, so bursting stays the main defence. Fits the Defence branch, for example as a deeper upgrade that needs Mighty bursts; more ranks could mean longer-lasting or more allies.
+- Infected squirrels that join your side and attack.
 - Big mushrooms that work as towers; spore clouds that drift on the wind.
 - Birds, hedgehogs, badgers, foresters with fire and fungicide, dry weather, a rival fungus.
 - Spells with cooldowns: call rain, bloom, a mind spore that turns a forester.
