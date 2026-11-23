@@ -1,8 +1,10 @@
 import { describe, expect, test } from 'vitest';
 import { canGrowAt, growMycelium, step } from '../game/sim';
-import { createLevel1, idx, type Game } from '../game/world';
+import { createLevel1, idx, TILE, type Game } from '../game/world';
+import { GLOW } from './forestLayout';
 import {
-  BRANCH_MIN, changedChunks, CHUNK, chunkOf, MAX_THREAD, networkLayout, nodeSignature, pathFromRoot, pointOnThread,
+  changedChunks, CHUNK, chunkOf, COLOUR_RAMP, COLOUR_STEPS, colourAt, MAX_THREAD, mixColour, networkLayout, nodeSignature, pathFromRoot,
+  pointOnThread,
 } from './networkLayout';
 
 // A level with a good spread of mycelium.
@@ -116,40 +118,60 @@ test('branches wander instead of running in straight rows', () => {
   expect(turns / (straight + turns)).toBeGreaterThan(0.3);
 });
 
-describe('branch colours', () => {
-  test('each main branch keeps one colour, and small twigs keep their parent\'s', () => {
-    const net = networkLayout(grown(4));
+describe('colour by distance from the mother', () => {
+  test('the colour follows how far along the network a thread is', () => {
+    const net = networkLayout(grown());
     for (const n of net.nodes.values()) {
-      const p = net.nodes.get(n.parent);
-      if (!p || p.parent < 0) continue;
-      // A colour change only where a big side branch starts.
-      if (n.branch !== p.branch) expect(n.size).toBeGreaterThanOrEqual(BRANCH_MIN);
-      // The biggest child always carries its parent's colour on.
-      const biggest = p.children.map((c) => net.nodes.get(c)!).sort((a, b) => b.size - a.size)[0];
-      expect(biggest.branch).toBe(p.branch);
+      const base = colourAt(n.depth);
+      expect([base, mixColour(base, 0xffffff, 0.25)]).toContain(n.color);
     }
   });
 
-  test('the branches leaving the mother get different colours', () => {
-    const net = networkLayout(grown(4));
-    const root = net.nodes.get(net.roots[0])!;
-    const colours = root.children.map((c) => net.nodes.get(c)!.branch);
-    expect(new Set(colours).size).toBe(colours.length);
+  test('it starts at the scheme\'s first colour and ends at the last, in a few steps', () => {
+    expect(colourAt(0)).toBe(GLOW[0]);
+    expect(colourAt(COLOUR_RAMP)).toBe(GLOW[1]);
+    expect(colourAt(COLOUR_RAMP * 3)).toBe(GLOW[1]);
+    const seen = new Set(Array.from({ length: 200 }, (_, d) => colourAt(d)));
+    expect(seen.size).toBe(COLOUR_STEPS + 1);
   });
 
-  test('far fewer colour changes than random colours per tile would give', () => {
-    const g = grown(4);
-    const net = networkLayout(g);
-    let changes = 0;
-    let links = 0;
+  test('neighbouring threads change colour only a little', () => {
+    const net = networkLayout(grown());
     for (const n of net.nodes.values()) {
       const p = net.nodes.get(n.parent);
-      if (!p || p.parent < 0) continue; // the branches leaving the mother differ on purpose
-      links++;
-      if (n.branch !== p.branch) changes++;
+      if (!p) continue;
+      expect(Math.abs(n.depth - p.depth)).toBe(1);
     }
-    expect(changes / links).toBeLessThan(0.15); // random colours would change at 4 links in 5
   });
+});
+
+test('few long straight runs side by side (a full disc of network)', () => {
+  const g = createLevel1(3);
+  const m = g.mushrooms[0];
+  for (let y = 0; y < g.h; y++) for (let x = 0; x < g.w; x++) {
+    const i = idx(g, x, y);
+    if (Math.hypot(x - m.x, y - m.y) < 14 && g.tiles[i] !== TILE.TREE && g.tiles[i] !== TILE.ROCK) g.mycelium[i] = 1;
+  }
+  const net = networkLayout(g);
+  // Tiles that sit in a straight run of 4 or more steps the same way.
+  const inRun = new Set<number>();
+  for (const n of net.nodes.values()) {
+    const dir = n.tile - n.parent;
+    let k = n;
+    let len = 0;
+    while (net.nodes.get(k.parent) && k.tile - k.parent === dir) {
+      len++;
+      k = net.nodes.get(k.parent)!;
+    }
+    if (len < 4) continue;
+    let j = n;
+    for (let s = 0; s <= len; s++) {
+      inRun.add(j.tile);
+      j = net.nodes.get(j.parent)!;
+    }
+  }
+  // Without the cost of going straight on it was 55%.
+  expect(inRun.size / net.nodes.size).toBeLessThan(0.48);
 });
 
 describe('drawing in chunks', () => {

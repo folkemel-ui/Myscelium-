@@ -211,4 +211,15 @@ Things learned while building Mycelium that are worth knowing before the next ch
   compare with and without a change on the same page (hide a layer with `.visible = false`).
 - A fresh round's opening zoom is `intro` in GameView; anything the player does to the camera
   must clear it, or the camera fights the player.
+- Thread colours come from `colourAt(depth)` in networkLayout.ts (distance along the network from
+  the mother), in a few steps: threads are drawn grouped by colour and width, so smooth colours
+  would mean many more strokes.
+- Thread shapes: `STRAIGHT_COST` in networkLayout.ts. To judge a shape change, measure (the share
+  of tiles in straight runs, see networkLayout.test.ts) and look at a full disc of network side by
+  side; numbers alone picked a zigzag that looked worse.
+- Anything clipped to the map (masks, tints, filters) shows as a rectangle now that the forest
+  goes on past the edge (Pack 19): clip to the surround instead, and give the outer trees the
+  same colour changes as the canopy.
+- Before/after pictures: `git stash`, take the same scene, `git stash pop`. Set `g.time` past a
+  few seconds before `view.setGame` in test scenes, or the opening zoom is what gets pictured.
 

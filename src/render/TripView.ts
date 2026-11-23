@@ -11,8 +11,8 @@
 //     of light rolling out from the mother.
 import { Container, Graphics, Sprite, Texture } from 'pixi.js';
 import type { Game } from '../game/world';
-import { GLOW, hash, TS, type Crown } from './forestLayout';
-import { mixColour } from './networkLayout';
+import { GLOW, hash, SURROUND, TS, type Crown } from './forestLayout';
+import { mixColour, rampColours } from './networkLayout';
 import { bandTexture, DOT_SIZE, dotTexture } from './textures';
 import {
   beatsBetween, bandAt, canopyHue, floaterCount, hueShift, stageFor, stageStrength, stageWave,
@@ -118,7 +118,10 @@ export class TripView {
       }
       spots.fill({ color, alpha: 0.95 });
     });
-    this.airMask.clear().rect(0, 0, this.w, this.h).fill(0xffffff);
+    // The air reaches over the forest past the edge too (where it fades into the dark), so the
+    // map doesn't show as a lighter rectangle.
+    const out = SURROUND * TS;
+    this.airMask.clear().rect(-out, -out, this.w + out * 2, this.h + out * 2).fill(0xffffff);
   }
 
   update(g: Game, clock: number, dt: number, share: number): TripState {
@@ -155,11 +158,14 @@ export class TripView {
     this.corners.forEach((c, k) => {
       c.visible = stage >= 3;
       if (!c.visible) return;
+      // Fainter, and only in the far colours of the network's colour ramp (no yellow-green haze).
+      const ramp = rampColours();
+      const far = [ramp[1], ramp[2]];
       const cycle = clock / 6 + k * 1.3;
-      c.tint = mixColour(GLOW[Math.floor(cycle) % GLOW.length], GLOW[(Math.floor(cycle) + 1) % GLOW.length], cycle % 1);
+      c.tint = mixColour(far[Math.floor(cycle) % 2], far[(Math.floor(cycle) + 1) % 2], cycle % 1);
       c.width = c.height = reach * 2 * (1 + 0.08 * Math.sin(clock * 0.4 + k));
       c.position.set(k % 2 ? this.w : 0, k < 2 ? 0 : this.h);
-      c.alpha = 0.22 * strength;
+      c.alpha = 0.1 * strength;
     });
 
     // The wave when a stage arrives: a soft glow spreading out from the mother, with only a faint

@@ -178,14 +178,14 @@ on top.
 - [x] **A slimmer panel on a computer** – It takes about 180 px over three rows, which makes the map smaller. Put the tools and round buttons in one row, or at the side as on the phone. *(The tools stand in a column at the left, in a pod like the panel's; the panel is one row of numbers and round buttons, about 70 px tall. At 1280×800 the map is about 15% bigger. In a small window (900 px wide or less) the tools stay in the panel as pictures.)*
 - [x] **The hint line off the map** – "Drag to grow mycelium…" sits on top of the forest's bottom edge. Move it below the map, or fade it out after the first few rounds. *(It shows only in a player's first 3 rounds, and fades out 15 seconds into each.)*
 
-### Pack 20 – A calmer trip
+### Pack 20 – A calmer trip ✓
 
 Late in a round the network looks like a busy circuit board. Keep the magic, lose the noise.
 
-- [ ] **Colour by distance from the mother** – At 47% held the network is yellow, pink, cyan, lime and purple branches all glowing at full strength. Let the colour shift with distance from the mother instead, so it reads as one living thing spreading outwards.
-- [ ] **Wandering threads** – In places the threads run in long straight parallel lines, and the grid shows through. More wander and fewer parallel runs.
-- [ ] **Mushroom glows that don't pile up** – Where mushrooms stand close their coloured halos merge into big blotches. Smaller halos, or a limit on how bright overlapping halos get.
-- [ ] **Clean corners** – The corner glow late in a round is a yellow-green haze that makes the edges look dirty. Fainter, and in the scheme's own colours.
+- [x] **Colour by distance from the mother** – At 47% held the network is yellow, pink, cyan, lime and purple branches all glowing at full strength. Let the colour shift with distance from the mother instead, so it reads as one living thing spreading outwards. *(Threads shift through three of the scheme's colours – for Rose: pink at the mother, through violet, to cyan 30 tiles out along the network – in 10 steps, so the drawing stays as cheap as before. The five-colour branches of Pack 9 are gone; mushrooms, spores and specks keep all five colours. Shown side by side before and after.)*
+- [x] **Wandering threads** – In places the threads run in long straight parallel lines, and the grid shows through. More wander and fewer parallel runs. *(Carrying straight on now costs a little extra when the network works out how each tile joins it, so threads turn now and then and spread out diagonally from the mother instead of in a cross of comb-like rows. On a full disc of network the share of threads in straight runs of 4+ tiles fell from 55% to 44%. Tried and dropped: a slow wave of harder ground (made straighter corridors, 71%) and a bigger penalty (zigzags everywhere).)*
+- [x] **Mushroom glows that don't pile up** – Where mushrooms stand close their coloured halos merge into big blotches. Smaller halos, or a limit on how bright overlapping halos get. *(Both: halos are about 20% smaller (2.2 tiles across, 3.6 for the mother), and each is dimmer the more mushrooms stand within 3 tiles of it (by 1 over the square root of one plus their number).)*
+- [x] **Clean corners** – The corner glow late in a round is a yellow-green haze that makes the edges look dirty. Fainter, and in the scheme's own colours. *(At 10% strength (was 22%), drifting between the two far colours of the network's colours (violet and cyan for Rose). Also fixed on the way: late in a round the map showed as a lighter rectangle against the forest around it from Pack 19 – the trip's air was cut off at the map's edge and the trees outside didn't turn teal and violet. Both now reach past the edge.)*
 
 ### Pack 21 – A menu that feels like the game
 

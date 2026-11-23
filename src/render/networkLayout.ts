@@ -16,8 +16,7 @@ export interface NetNode {
   cx: number; // the thread's bend: a control point between parent and node
   cy: number;
   hairs: { angle: number; length: number; bend: number }[]; // fine strands reaching into open ground
-  branch: number; // which glow colour its branch has (an index into GLOW)
-  color: number; // its thread's colour: the branch's, a little paler at the finest tips
+  color: number; // its thread's colour: by its distance from the mother, a little paler at the finest tips
 }
 
 export interface NetworkLayout {
@@ -31,6 +30,7 @@ export const threadWidth = (size: number) => Math.min(MAX_THREAD, 0.9 + 0.55 * M
 
 const SIDES = [[1, 0], [0, 1], [-1, 0], [0, -1]] as const;
 
+export const STRAIGHT_COST = 3;
 export function networkLayout(g: Game): NetworkLayout {
   const nodes = new Map<number, NetNode>();
   const roots: number[] = [];
@@ -41,7 +41,7 @@ export function networkLayout(g: Game): NetworkLayout {
     const y = (tile - x) / g.w;
     const root = parent < 0;
     return {
-      tile, parent, depth, children: [], size: 1, width: 0, cx: 0, cy: 0, hairs: [], branch: 0, color: GLOW[0],
+      tile, parent, depth, children: [], size: 1, width: 0, cx: 0, cy: 0, hairs: [], color: GLOW[0],
       x: (x + 0.5 + (root ? 0 : (hash(g, tile, 101) - 0.5) * 0.5)) * TS,
       y: (y + 0.5 + (root ? 0 : (hash(g, tile, 102) - 0.5) * 0.5)) * TS,
     };
@@ -72,7 +72,11 @@ export function networkLayout(g: Game): NetworkLayout {
         if (!inside(g, x + dx, y + dy)) continue;
         const t = idx(g, x + dx, y + dy);
         if (!g.mycelium[t] || nodes.has(t)) continue;
-        const nd = d + cost(t);
+        // Carrying straight on costs a little more, so threads turn now and then and spread out
+        // diagonally instead of running in long straight rows side by side (Pack 20).
+        const from = via.get(tile);
+        const straight = from !== undefined && t - tile === tile - from;
+        const nd = d + cost(t) + (straight ? STRAIGHT_COST : 0);
         if (nd < (best.get(t) ?? Infinity)) {
           best.set(t, nd);
           via.set(t, tile);
@@ -114,36 +118,28 @@ export function networkLayout(g: Game): NetworkLayout {
       });
     });
   }
-  colourBranches(nodes, order, roots);
+  colourByDistance(nodes);
   const leaves = [...nodes.values()].filter((n) => n.children.length === 0 && n.parent >= 0).map((n) => n.tile);
   return { nodes, roots, leaves };
 }
 
-// Branch colours: each branch leaving a root gets its own glow colour, round the palette in order
-// of direction so neighbouring branches differ. Down the network, the biggest child keeps its
-// parent's colour and any other child carrying at least BRANCH_MIN tiles starts a new colour, so
-// the network reads as coloured veins; small twigs keep their parent's colour. The finest tips are
-// a little paler.
-export const BRANCH_MIN = 8;
-function colourBranches(nodes: Map<number, NetNode>, order: number[], roots: number[]) {
-  roots.forEach((r, k) => {
-    const root = nodes.get(r)!;
-    root.branch = k % GLOW.length;
-    const kids = root.children.map((c) => nodes.get(c)!);
-    kids.sort((a, b) => Math.atan2(a.y - root.y, a.x - root.x) - Math.atan2(b.y - root.y, b.x - root.x));
-    kids.forEach((c, j) => (c.branch = (root.branch + j) % GLOW.length));
-  });
-  for (const t of order) {
-    const n = nodes.get(t)!;
-    if (n.parent < 0) continue;
-    const kids = n.children.map((c) => nodes.get(c)!).sort((a, b) => b.size - a.size);
-    let next = 1;
-    kids.forEach((c, j) => {
-      c.branch = j > 0 && c.size >= BRANCH_MIN ? (n.branch + next++) % GLOW.length : n.branch;
-    });
-  }
+// Colour by distance from the mother (Pack 20): the network shifts smoothly through three of the
+// scheme's colours as it spreads out, so it reads as one living thing growing outwards rather than
+// five branches of different colours. In COLOUR_STEPS steps (threads of one colour and width are
+// drawn together, so a few steps keep the drawing cheap). The finest tips are a little paler.
+export const COLOUR_RAMP = 30; // tiles along the network from the first colour to the last
+export const COLOUR_STEPS = 10;
+export const rampColours = () => [GLOW[0], GLOW[4], GLOW[1]];
+export function colourAt(depth: number) {
+  const stops = rampColours();
+  const step = Math.min(COLOUR_STEPS, Math.round((depth / COLOUR_RAMP) * COLOUR_STEPS)) / COLOUR_STEPS;
+  const f = step * (stops.length - 1);
+  const k = Math.min(stops.length - 2, Math.floor(f));
+  return mixColour(stops[k], stops[k + 1], f - k);
+}
+function colourByDistance(nodes: Map<number, NetNode>) {
   for (const n of nodes.values()) {
-    const base = GLOW[n.branch];
+    const base = colourAt(n.depth);
     n.color = n.size <= 2 ? mixColour(base, 0xffffff, 0.25) : base;
   }
 }

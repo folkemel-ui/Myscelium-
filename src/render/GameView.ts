@@ -140,14 +140,15 @@ export class GameView {
     await view.app.init({ resizeTo: host, background: 0x15110d, antialias: true });
     host.appendChild(view.app.canvas);
     view.world.addChild(
-      view.outerFloor, view.floor, view.trip.ground, view.logs, view.network.glowLayer, view.network.threadLayer, view.outerTrees, view.outerFade, view.canopy, view.creatures.shelfLayer,
-      view.trip.spots, view.light, view.lightMask, view.trip.air, view.trip.airMask, view.creatures.halos,
+      view.outerFloor, view.floor, view.trip.ground, view.logs, view.network.glowLayer, view.network.threadLayer, view.outerTrees, view.canopy, view.creatures.shelfLayer,
+      view.trip.spots, view.light, view.lightMask, view.trip.air, view.trip.airMask, view.outerFade, view.creatures.halos,
       view.creatures.under, view.creatures.mushroomLayer, view.creatures.spores, view.creatures.beetleLayer, view.creatures.bolts, view.creatures.danger, view.hover,
     );
     view.light.mask = view.lightMask;
     view.lightTexture = Texture.from(paintLightSpot());
     view.world.filters = [view.colour];
     view.canopy.filters = [view.canopyColour];
+    view.outerTrees.filters = [view.canopyColour]; // the trees past the edge turn with the rest
     view.network.threadLayer.filters = [view.threadColour];
     view.buildForest();
     view.app.stage.addChild(view.world, view.edgeMarks, view.creatures.sparkles);

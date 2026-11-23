@@ -124,11 +124,14 @@ export class CreatureView {
         this.shrooms.set(m.id, s);
         this.mushroomLayer.addChild(s.shape);
       }
-      // The glow grows with the trip, and breathes.
-      const big = (m.mother ? 2.2 : 1.4) * TS * 2;
+      // The glow grows with the trip, and breathes. Where mushrooms stand close together each glow
+      // is dimmer, so the halos don't pile up into one big blotch (Pack 20).
+      const big = (m.mother ? 1.8 : 1.1) * TS * 2;
+      let crowd = 0;
+      for (const o of g.mushrooms) if (o !== m && Math.hypot(o.x - m.x, o.y - m.y) < 3) crowd++;
       s.halo.position.set((m.x + 0.5) * TS, (m.y + 0.5) * TS);
       s.halo.width = s.halo.height = big * Math.min(1, sproutScale(clock - s.born).sy || 0);
-      s.halo.alpha = (0.2 + 0.45 * Math.min(1, share)) * (0.85 + 0.15 * Math.sin(clock * 2 + m.id));
+      s.halo.alpha = ((0.2 + 0.4 * Math.min(1, share)) / Math.sqrt(1 + crowd)) * (0.85 + 0.15 * Math.sin(clock * 2 + m.id));
       const sprout = sproutScale(clock - s.born);
       const squash = squashScale(clock - s.burst);
       s.shape.scale.set(sprout.sx * squash.sx, sprout.sy * squash.sy);
