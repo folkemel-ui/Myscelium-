@@ -15,7 +15,8 @@ import { TripView } from './TripView';
 import { homeCamera, MAX_ZOOM, panBy, pinch, place, zoomAt, type Camera, type Viewport } from './camera';
 import { blackLight } from './trip';
 import {
-  CANOPY_GREENS, crownLayout, hash, PINE_GREENS, lightAt, lightSpots, logLook, sway, TS, type Crown, type LightSpot,
+  CANOPY_GREENS, crownLayout, hash, outerCrowns, paintSurroundFade, PINE_GREENS, lightAt, lightSpots, logLook, SURROUND, sway, TS,
+  type Crown, type LightSpot,
 } from './forestLayout';
 
 export type Tool = 'grow' | 'mushroom' | 'shelf' | 'tower';
@@ -28,6 +29,12 @@ const LONG_PRESS = 450;
 // The smallest a tile should be when a round starts (screen pixels). Where the whole map would be
 // smaller than that (a phone), the round starts zoomed in on the mother instead.
 const START_TILE_PX = 14;
+
+// A fresh round opens close on the mother and eases out to the usual view over this many seconds
+// (after a short pause), unless the player zooms or touches the map first.
+const INTRO_HOLD = 0.4;
+const INTRO_TIME = 2.2;
+const INTRO_ZOOM = 2.2; // how much closer it starts than the usual view
 
 function startCamera(v: Viewport, g: Game): Camera {
   const zoom = Math.min(MAX_ZOOM, Math.max(1, START_TILE_PX / (v.fit * TS)));
@@ -80,6 +87,10 @@ export class GameView {
   // Layers, bottom to top: the painted floor, logs, the mycelium, tree crowns, patches of light,
   // then mushrooms and puffs, beetles and the hover outline.
   private floor = new Sprite();
+  // The forest past the map's edge: more floor, unplayable trees, and a fade into the dark.
+  private outerFloor = new Container(); // mirrored copies of the floor on all sides, so the join can't be seen
+  private outerTrees = new Container();
+  private outerFade = new Sprite();
   private logs = new Graphics();
   private logKey = '';
   private logTiles: number[] = []; // where logs lie or lay, so rotted ones leave some crumbs
@@ -109,6 +120,7 @@ export class GameView {
   // The camera, and the pointers on the map: fingers for pinching, a right-drag for moving.
   private cam: Camera = { zoom: 1, cx: 0, cy: 0 };
   private camReady = false; // a new forest starts zoomed out, showing all of it
+  private intro: { start: number; from: Camera } | null = null; // the opening zoom, while it plays
   private pointers = new Map<number, { x: number; y: number }>();
   private pinching = false;
   private panning = false;
@@ -128,7 +140,7 @@ export class GameView {
     await view.app.init({ resizeTo: host, background: 0x15110d, antialias: true });
     host.appendChild(view.app.canvas);
     view.world.addChild(
-      view.floor, view.trip.ground, view.logs, view.network.glowLayer, view.network.threadLayer, view.canopy, view.creatures.shelfLayer,
+      view.outerFloor, view.floor, view.trip.ground, view.logs, view.network.glowLayer, view.network.threadLayer, view.outerTrees, view.outerFade, view.canopy, view.creatures.shelfLayer,
       view.trip.spots, view.light, view.lightMask, view.trip.air, view.trip.airMask, view.creatures.halos,
       view.creatures.under, view.creatures.mushroomLayer, view.creatures.spores, view.creatures.beetleLayer, view.creatures.bolts, view.creatures.danger, view.hover,
     );
@@ -148,6 +160,7 @@ export class GameView {
     const canvas = view.app.canvas;
     canvas.addEventListener('wheel', (e) => {
       e.preventDefault();
+      view.intro = null;
       const r = canvas.getBoundingClientRect();
       view.cam = zoomAt(view.cam, Math.exp(-e.deltaY * 0.0015), e.clientX - r.left, e.clientY - r.top, view.viewport());
     }, { passive: false });
@@ -177,7 +190,41 @@ export class GameView {
     this.floor.height = g.h * TS;
     if (old !== Texture.EMPTY) old.destroy(true);
 
+    // The surround: the same floor carried on past the edge, trees, and the fade into the dark.
+    const out = SURROUND * TS;
+    for (const c of this.outerFloor.removeChildren()) c.destroy();
+    for (const sx of [-1, 0, 1]) {
+      for (const sy of [-1, 0, 1]) {
+        if (sx === 0 && sy === 0) continue;
+        const copy = new Sprite(this.floor.texture);
+        copy.width = g.w * TS;
+        copy.height = g.h * TS;
+        // Flipped across the edge it touches: the floor carries on as its own mirror image.
+        if (sx !== 0) copy.scale.x *= -1;
+        if (sy !== 0) copy.scale.y *= -1;
+        copy.position.set(sx === 0 ? 0 : sx < 0 ? 0 : 2 * g.w * TS, sy === 0 ? 0 : sy < 0 ? 0 : 2 * g.h * TS);
+        this.outerFloor.addChild(copy);
+      }
+    }
+    for (const c of this.outerTrees.removeChildren()) c.destroy();
+    for (const crown of outerCrowns(g)) {
+      const shape = crownShape(crown);
+      shape.position.set(crown.x, crown.y);
+      this.outerTrees.addChild(shape);
+    }
+    const oldFade = this.outerFade.texture;
+    this.outerFade.texture = Texture.from(paintSurroundFade(g, [0x15, 0x11, 0x0d]));
+    if (oldFade !== Texture.EMPTY) oldFade.destroy(true);
+    this.outerFade.position.set(-out, -out);
+    this.outerFade.width = g.w * TS + out * 2;
+    this.outerFade.height = g.h * TS + out * 2;
+
     for (const c of this.canopy.removeChildren()) c.destroy();
+    // The trees past the edge stand still (and are many), so they are drawn once into a texture.
+    // They sit outside the canopy, away from its colour filter, which would otherwise have to run
+    // over the whole screen.
+    this.outerTrees.cacheAsTexture(false);
+    this.outerTrees.cacheAsTexture({ resolution: 2 });
     this.crowns = crownLayout(g).map((crown) => {
       const shape = crownShape(crown);
       this.canopy.addChild(shape);
@@ -227,11 +274,13 @@ export class GameView {
   // Zoom in or out by a factor, around the middle of the view (the + and - keys), or back out to
   // the whole map (0).
   zoomBy(factor: number) {
+    this.intro = null;
     const v = this.viewport();
     this.cam = zoomAt(this.cam, factor, v.x0 + v.w / 2, v.y0 + v.h / 2, v);
   }
 
   resetCamera() {
+    this.intro = null;
     this.cam = homeCamera(this.viewport());
   }
 
@@ -246,6 +295,7 @@ export class GameView {
   }
 
   private pointerDown(e: FederatedPointerEvent) {
+    this.intro = null;
     this.pointers.set(e.pointerId, { x: e.global.x, y: e.global.y });
     this.events.onInfo?.(null); // any touch closes what a long press showed
     this.heldTile = -1;
@@ -391,6 +441,21 @@ export class GameView {
     if (!this.camReady) {
       this.cam = startCamera(v, this.game);
       this.camReady = true;
+      // A round just begun: start close on the mother.
+      const mother = this.game.mushrooms.find((m) => m.mother);
+      this.intro = this.game.time < 0.5 && mother
+        ? { start: this.clock, from: { zoom: Math.min(MAX_ZOOM, this.cam.zoom * INTRO_ZOOM), cx: (mother.x + 0.5) * TS, cy: (mother.y + 0.5) * TS } }
+        : null;
+    }
+    if (this.intro) {
+      const to = startCamera(v, this.game);
+      const t = Math.min(1, Math.max(0, (this.clock - this.intro.start - INTRO_HOLD) / INTRO_TIME));
+      const e = t * t * (3 - 2 * t);
+      const { from } = this.intro;
+      // Zoom out evenly (by the logarithm), the centre following.
+      const zoom = Math.exp(Math.log(from.zoom) + (Math.log(to.zoom) - Math.log(from.zoom)) * e);
+      this.cam = { zoom, cx: from.cx + (to.cx - from.cx) * e, cy: from.cy + (to.cy - from.cy) * e };
+      if (t >= 1) this.intro = null;
     }
     const { at, cam } = place(this.cam, v);
     this.cam = cam;
@@ -421,6 +486,8 @@ export class GameView {
     // Black light: the forest darkens towards indigo, the glowing things don't.
     const night = blackLight(share).tint;
     this.floor.tint = night;
+    this.outerFloor.tint = night;
+    this.outerTrees.tint = night;
     this.logs.tint = night;
     this.canopy.tint = night;
     this.canopyColour.hue(trip.canopyHue, false);

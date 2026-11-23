@@ -171,6 +171,8 @@ export function App() {
   const appEl = useRef<HTMLDivElement>(null);
   const [small, setSmall] = useState(false);
   const thumbs = touch && small;
+  // On a computer with room, the tools stand in a column at the left, so the panel is one row.
+  const sideTools = !thumbs && !small;
   const toolBar = useRef<HTMLElement>(null);
   const iconBar = useRef<HTMLElement>(null);
   // What a finger held on the map is showing (a tile, and where on the screen).
@@ -314,7 +316,7 @@ export function App() {
     const fit = () => {
       const space = { left: 0, right: 0, bottom: 0 };
       const box = app?.getBoundingClientRect();
-      for (const el of thumbs ? [toolBar.current, iconBar.current] : []) {
+      for (const el of thumbs || sideTools ? [toolBar.current, iconBar.current] : []) {
         if (!el || !box) continue;
         const r = el.getBoundingClientRect();
         if (r.width === 0) continue;
@@ -330,7 +332,7 @@ export function App() {
     for (const el of [app, toolBar.current, iconBar.current]) if (el) watch.observe(el);
     fit();
     return () => watch.disconnect();
-  }, [thumbs, screen]);
+  }, [thumbs, sideTools, screen]);
 
   // The forest starts below the panel, however tall it is.
   useEffect(() => {
@@ -572,7 +574,7 @@ export function App() {
   }, [help, paused, saving, screen, profile]);
 
   const tools = (
-    <div className={thumbs ? 'tools thumb-tools' : 'tools'}>
+    <div className={thumbs ? 'tools thumb-tools' : sideTools ? 'tools side' : 'tools'}>
       {BAR.map((t) => {
         const open = !t.unlock || unlocked(profile, t.unlock);
         if (thumbs && !open) return null;
@@ -665,9 +667,10 @@ export function App() {
             <span className="rate">{snap.kills} beaten</span>
           </div>
         </div>
-        {!thumbs && tools}
+        {!thumbs && !sideTools && tools}
         {!thumbs && icons}
       </header>
+      {sideTools && screen === 'game' && <nav className="side-tools" ref={toolBar} aria-label="Tools">{tools}</nav>}
       {thumbs && screen === 'game' && (
         <>
           <nav className="thumb-bar right" ref={toolBar} aria-label="Tools">{tools}</nav>
@@ -675,8 +678,8 @@ export function App() {
         </>
       )}
       {info && screen === 'game' && <InfoBubble at={info} game={game.current} tick={snap.time} onClose={() => setInfo(null)} />}
-      {screen === 'game' && (
-        <p className="hint">
+      {screen === 'game' && profile.rounds < 3 && (
+        <p className="hint" key={game.current.seed}>
           {touch
             ? 'Drag to grow · tap a mushroom to burst it · pinch to zoom'
             : 'Drag to grow mycelium · click a mushroom to burst it · wheel to zoom · H for help'}

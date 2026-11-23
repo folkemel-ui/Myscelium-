@@ -203,4 +203,12 @@ Things learned while building Mycelium that are worth knowing before the next ch
   buildings cost or do; compare the builder with the casual player.
 - "In view" on the screen means the canvas less the thumb bars and the panel (`panelBox`, set by
   App): the map is drawn under the panel and bars too, so the camera's viewport is not what is seen.
+- The forest past the map's edge (`SURROUND` tiles): mirrored copies of the floor (a repeated copy
+  showed a line at the join), still trees cached as a texture (`outerTrees`), and a fade picture.
+  Keep them out of the canopy: its colour filter runs over the bounds of what is in it, and with
+  the surround inside that became the whole screen.
+- Timing in the headless test browser has no graphics card: whole frames take ~300 ms, so only
+  compare with and without a change on the same page (hide a layer with `.visible = false`).
+- A fresh round's opening zoom is `intro` in GameView; anything the player does to the camera
+  must clear it, or the camera fights the player.
 

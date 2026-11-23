@@ -81,6 +81,84 @@ export function crownLayout(g: Game): Crown[] {
   return crowns.sort((a, b) => a.y - b.y);
 }
 
+// The forest goes on past the map's edge: unplayable trees all round it, thickest at the edge (so the
+// straight line of the map's border is broken up) and thinning out into the dark. In tiles: how far
+// the surround reaches, and how far out it has faded into the dark.
+export const SURROUND = 16;
+export const SURROUND_FADE = 11;
+
+export function outerCrowns(g: Game): Crown[] {
+  const rng = makeRng(Math.floor(g.noise[2] * 2 ** 31) ^ 0x0b0e);
+  const pine = g.biome === 'pine';
+  const seed = g.noise[3] * 10;
+  const crowns: Crown[] = [];
+  for (let ty = -SURROUND; ty < g.h + SURROUND; ty++) {
+    for (let tx = -SURROUND; tx < g.w + SURROUND; tx++) {
+      // Tiles outside the map, by how far out they are.
+      const out = Math.max(-tx, ty < 0 ? -ty : 0, tx - g.w + 1, ty - g.h + 1);
+      if (out <= 0 || out > SURROUND_FADE) continue;
+      // Clumps of trees with clearings between them (a slow wave over the tiles), a little thicker
+      // near the edge, thinning out into the dark.
+      const clump = 0.5 + 0.5 * Math.sin(tx * 0.55 + seed) * Math.cos(ty * 0.47 + seed * 1.7);
+      const dense = (out <= 2 ? 0.6 : 0.42 * (1 - out / (SURROUND_FADE + 3))) * (0.25 + 1.1 * clump);
+      if (rng() > dense) continue;
+      const r = TS * (pine ? 0.55 + 0.22 * rng() : 0.6 + 0.35 * rng());
+      const count = 4 + Math.floor(rng() * 3);
+      const blobs: Blob[] = [];
+      for (let k = 0; k < count; k++) {
+        const a = rng() * Math.PI * 2;
+        const d = r * 0.45 * rng();
+        const light = k / count;
+        blobs.push({ dx: Math.cos(a) * d - light * r * 0.18, dy: Math.sin(a) * d - light * r * 0.18, r: r * (0.45 + 0.25 * rng()), light });
+      }
+      crowns.push({
+        // Right at the edge they lean outwards, so they only just overlap the map's border.
+        x: (tx + 0.5 + (rng() - 0.5) * 0.6 + (tx < 0 ? -0.35 : tx >= g.w ? 0.35 : 0)) * TS,
+        y: (ty + 0.5 + (rng() - 0.5) * 0.6 + (ty < 0 ? -0.35 : ty >= g.h ? 0.35 : 0)) * TS,
+        r,
+        green: Math.floor(rng() * CANOPY_GREENS.length),
+        phase: rng() * Math.PI * 2,
+        blobs,
+        specks: [],
+        edge: rng() * Math.PI * 2,
+        pine,
+      });
+    }
+  }
+  return crowns.sort((a, b) => a.y - b.y);
+}
+
+// The darkness the surround fades into: a small picture, one pixel per quarter tile, clear over the
+// map and darkening with the distance outside it (stretched smoothly over the surround).
+export function paintSurroundFade(g: Game, color: [number, number, number]) {
+  const per = 4;
+  const W = (g.w + SURROUND * 2) * per;
+  const H = (g.h + SURROUND * 2) * per;
+  const canvas = document.createElement('canvas');
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d')!;
+  const img = ctx.createImageData(W, H);
+  for (let py = 0; py < H; py++) {
+    for (let px = 0; px < W; px++) {
+      const x = px / per - SURROUND;
+      const y = py / per - SURROUND;
+      const dx = Math.max(0, -x, x - g.w);
+      const dy = Math.max(0, -y, y - g.h);
+      const d = Math.hypot(dx, dy) / SURROUND_FADE;
+      const t = Math.min(1, d);
+      const a = t * t * (3 - 2 * t);
+      const k = (py * W + px) * 4;
+      img.data[k] = color[0];
+      img.data[k + 1] = color[1];
+      img.data[k + 2] = color[2];
+      img.data[k + 3] = Math.round(Math.min(1, a) * 255);
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  return canvas;
+}
+
 // How far a crown has swayed at time t: a small shift in pixels and a turn in radians.
 export function sway(c: Crown, t: number) {
   return {

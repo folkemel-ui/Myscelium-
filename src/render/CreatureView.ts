@@ -21,6 +21,7 @@ const SMALL_SPORES = [0xd8ff7a, 0xeaffb0, 0xb6ff4f];
 const SPARKLES = [0xffe066, 0xd8ff6a, 0xfff3b0];
 const MAX_PARTICLES = 900;
 const ARRIVAL_WARNING = 2.5; // seconds an arrow shows where beetles came in
+const BEACON_TIME = 5; // seconds the mother sends out rings at the start of a round
 
 type Point = { x: number; y: number };
 
@@ -149,6 +150,16 @@ export class CreatureView {
       if (m.mother) {
         const pulse = 0.5 + 0.5 * Math.sin(clock * 2.2);
         under.circle(cx, cy, TS * (0.9 + 0.15 * pulse)).fill({ color: PALETTE.mother, alpha: 0.1 + 0.06 * pulse });
+        // The first seconds of a round: soft rings of her colour roll out from her, so she is
+        // found at once.
+        if (g.time < BEACON_TIME) {
+          const end = 1 - g.time / BEACON_TIME;
+          for (let k = 0; k < 3; k++) {
+            const f = ((g.time + k * 0.55) % 1.65) / 1.65;
+            under.circle(cx, cy, TS * (0.8 + 3.2 * f)).stroke({ width: 3 * (1 - f) + 1, color: PALETTE.mother, alpha: 0.55 * (1 - f) * end });
+          }
+          under.circle(cx, cy, TS * 1.6).fill({ color: PALETTE.mother, alpha: 0.12 * end });
+        }
       }
       const r = m.mother ? 17 : 12;
       if (m.cooldown > 0) {

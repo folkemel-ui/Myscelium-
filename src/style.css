@@ -570,3 +570,19 @@ kbd { font: inherit; font-size: 11px; opacity: 0.7; }
   .tools button { padding: 4px 8px; }
   .tools .tool-icon { width: 20px; height: 20px; }
 }
+
+/* --- On a computer: the tools in a column at the left, the panel in one row --- */
+.side-tools {
+  position: absolute; z-index: 2; left: calc(12px + var(--safe-l)); top: 50%; transform: translateY(-50%);
+  padding: 8px; border-radius: 18px 12px 20px 12px / 14px 20px 12px 18px;
+  background: var(--threads) center / 240px 60px repeat, linear-gradient(180deg, rgba(38, 24, 50, 0.9), rgba(18, 13, 22, 0.9));
+  border: 1px solid color-mix(in srgb, var(--glow) 30%, transparent);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--glow) 16%, transparent), 0 4px 18px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(6px);
+}
+.tools.side { flex-direction: column; gap: 6px; }
+.tools.side button { min-width: 176px; }
+.tools.side button.burst-all { margin-top: 4px; }
+/* The hint fades out once the round is under way. */
+.hint { animation: hint-out 1.5s ease-in 15s forwards; }
+@keyframes hint-out { to { opacity: 0; } }

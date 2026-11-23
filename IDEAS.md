@@ -167,16 +167,16 @@ reach is a guess. Small changes that make every fight fairer.
 - [x] **No stray ring** – From 33% held a huge faint circle arcs across the whole forest (the stage wave or the vignette); it looks like a mistake. Soften it or take it out. *(It was the outline of a new stage's wave, for about 1.5 s. The outline is gone; the soft glow spreading from the mother stays.)*
 - [x] **Towers and shelves balance-tested** – The scripted playthroughs never build them, so nobody knows if they are too strong or too weak. Add them to the playthrough test and tune them. *(A fourth scripted player, the builder, plays like the casual one and also grows 4 shelves and up to 4 towers. They were too weak: the builder won 8 s slower on average, mostly because shelves repaid their price only after 67 s and towers were rarely affordable. Shelves now make 0.45 nutrients a second (was 0.3; pays back in 44 s) and towers cost 25 nutrients and 30 spores (was 30 and 40). The builder now builds 4 towers on most maps and loses fewer mushrooms, but is still about 5 s slower: building defends, and the casual player already copes with the beetles, so defence can't speed up a win. Making building worth it needs stronger threats (Pack 26), not cheaper buildings.)*
 
-### Pack 19 – A forest that fills the screen
+### Pack 19 – A forest that fills the screen ✓
 
 The first look at a round: a dull, small scene in a rectangle with black at the sides and a tall panel
 on top.
 
-- [ ] **A livelier opening** – At the start the forest is flat grey-brown and the mother a small dot in a lot of nothing. Make her stand out more (a soft pulse, and a gentle zoom towards her for the first seconds).
-- [ ] **No black bars** – On a wide screen the map has dead black at both sides. Fill them with more, unplayable forest (dimmer trees and ferns fading into the dark).
-- [ ] **A soft edge** – The forest stops at a ruler-straight line. A ragged edge of trees and undergrowth, or a soft vignette, hides it.
-- [ ] **A slimmer panel on a computer** – It takes about 180 px over three rows, which makes the map smaller. Put the tools and round buttons in one row, or at the side as on the phone.
-- [ ] **The hint line off the map** – "Drag to grow mycelium…" sits on top of the forest's bottom edge. Move it below the map, or fade it out after the first few rounds.
+- [x] **A livelier opening** – At the start the forest is flat grey-brown and the mother a small dot in a lot of nothing. Make her stand out more (a soft pulse, and a gentle zoom towards her for the first seconds). *(A new round opens 2.2× closer on the mother, holds for 0.4 s and eases out to the usual view over 2.2 s; touching the map, the wheel or a zoom key stops it at once. For the first 5 seconds soft rings of her colour roll out from her. A loaded round starts as before.)*
+- [x] **No black bars** – On a wide screen the map has dead black at both sides. Fill them with more, unplayable forest (dimmer trees and ferns fading into the dark). *(The forest carries on for 16 tiles all round the map: the floor as its own mirror image (so the join can't be seen), and clumps of trees with clearings between them – pines in Pine Hollow – thinning out and fading into the dark over 11 tiles. The trees out there stand still and are drawn once into a texture. Filling the screen costs about a third more drawing time in the test browser, which has no graphics card; on a real one it should be well under a millisecond, still to be checked on a phone.)*
+- [x] **A soft edge** – The forest stops at a ruler-straight line. A ragged edge of trees and undergrowth, or a soft vignette, hides it. *(Both: trees right outside the edge lean over it a little, and the fade starts at nothing on the edge itself, so there is no line.)*
+- [x] **A slimmer panel on a computer** – It takes about 180 px over three rows, which makes the map smaller. Put the tools and round buttons in one row, or at the side as on the phone. *(The tools stand in a column at the left, in a pod like the panel's; the panel is one row of numbers and round buttons, about 70 px tall. At 1280×800 the map is about 15% bigger. In a small window (900 px wide or less) the tools stay in the panel as pictures.)*
+- [x] **The hint line off the map** – "Drag to grow mycelium…" sits on top of the forest's bottom edge. Move it below the map, or fade it out after the first few rounds. *(It shows only in a player's first 3 rounds, and fades out 15 seconds into each.)*
 
 ### Pack 20 – A calmer trip
 
