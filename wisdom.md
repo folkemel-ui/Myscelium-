@@ -152,3 +152,8 @@ Things learned while building Mycelium that are worth knowing before the next ch
   with the Write tool instead.
 - Enemies need a way to leave. Before beetles got full and walked off, they piled up to 195 on
   one map.
+- The CSS colours `--glow` and `--glow-2` are set from the colour scheme (App.tsx), so panels and
+  charts follow it. Glows from them use `color-mix(in srgb, var(--glow) 30%, transparent)`, with a
+  plain rgba line just before as a fallback for older browsers.
+- Panel icons are small inline SVGs at the end of App.tsx, coloured by CSS classes (`.i-spores`,
+  `.i-beetle` …), so a state like `.beetles.danger` can recolour them without new drawings.

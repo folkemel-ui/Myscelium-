@@ -19,22 +19,85 @@ input { -webkit-user-select: text; user-select: text; }
 .app { position: relative; height: 100%; user-select: none; container: app / size; }
 .stage { position: absolute; inset: 0; }
 
+/* --- The top panel: a dark, glowing pod with threads running through it --- */
 .panel {
   position: absolute; top: calc(10px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%);
-  display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 10px 22px; padding: 8px 16px;
+  display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 10px 20px; padding: 8px 18px;
   width: max-content; max-width: calc(100% - 20px); box-sizing: border-box;
-  background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+  /* Uneven corners, like something grown rather than cut. */
+  border-radius: 26px 18px 28px 16px / 20px 26px 16px 24px;
+  background:
+    radial-gradient(120% 140% at 0% 0%, rgba(255, 79, 216, 0.10), transparent 55%),
+    radial-gradient(120% 140% at 100% 100%, rgba(79, 243, 255, 0.08), transparent 55%),
+    var(--threads) center / 240px 60px repeat,
+    linear-gradient(180deg, rgba(38, 24, 50, 0.9), rgba(18, 13, 22, 0.9));
+  background:
+    radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--glow) 13%, transparent), transparent 55%),
+    radial-gradient(120% 140% at 100% 100%, color-mix(in srgb, var(--glow-2) 11%, transparent), transparent 55%),
+    var(--threads) center / 240px 60px repeat,
+    linear-gradient(180deg, rgba(38, 24, 50, 0.9), rgba(18, 13, 22, 0.9));
+  border: 1px solid rgba(255, 79, 216, 0.35);
+  border: 1px solid color-mix(in srgb, var(--glow) 38%, transparent);
+  box-shadow: 0 0 16px rgba(255, 79, 216, 0.22), 0 4px 18px rgba(0, 0, 0, 0.45), inset 0 0 14px rgba(79, 243, 255, 0.08);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--glow) 24%, transparent), 0 4px 18px rgba(0, 0, 0, 0.45),
+    inset 0 0 14px color-mix(in srgb, var(--glow-2) 9%, transparent);
   backdrop-filter: blur(6px); white-space: nowrap;
+  animation: panel-breathe 6s ease-in-out infinite;
 }
-.stat { display: flex; flex-direction: column; min-width: 70px; }
-.stat .label { font-size: 12px; color: var(--muted); }
-.stat strong { font-size: 20px; font-variant-numeric: tabular-nums; }
+@keyframes panel-breathe { 50% { border-color: color-mix(in srgb, var(--glow-2) 40%, transparent); } }
+:root {
+  /* Faint wandering threads, the panel's texture. */
+  --threads: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='60'%3E%3Cg fill='none' stroke='%23fff' stroke-opacity='0.05' stroke-width='1'%3E%3Cpath d='M0 44C30 38 46 52 76 40S120 18 150 30 206 48 240 36'/%3E%3Cpath d='M0 14C24 22 52 6 84 14S130 34 168 20 214 8 240 16'/%3E%3Cpath d='M76 40c6-10 4-18 12-26M168 20c8 8 6 18 16 26'/%3E%3C/g%3E%3C/svg%3E");
+}
+.stat { display: flex; align-items: center; gap: 8px; min-width: 70px; }
+.stat-text { display: flex; flex-direction: column; }
+.stat .label { font-size: 11px; color: var(--muted); letter-spacing: 0.02em; }
+.stat strong { font-size: 20px; line-height: 1.15; font-variant-numeric: tabular-nums; }
 .stat strong.bump { animation: bump 0.25s ease-out; display: inline-block; transform-origin: left center; }
 @keyframes bump { 0% { transform: scale(1.35); color: #fff3b0; text-shadow: 0 0 8px #ffe066; } 100% { transform: scale(1); } }
-.stat .rate { font-size: 12px; color: var(--muted); }
-.goal { min-width: 170px; }
+.stat .rate { font-size: 11px; color: var(--muted); }
+
+/* Each counter's icon sits in a small glowing pod. */
+.chip {
+  flex: none; width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50% 46% 52% 44%;
+  background: radial-gradient(circle at 40% 35%, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0.02) 70%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.chip svg { width: 20px; height: 20px; overflow: visible; }
+.i-time { stroke: var(--muted); fill: none; }
+.i-spores circle { filter: drop-shadow(0 0 2px var(--glow)); }
+.i-spores .c1 { fill: var(--glow); }
+.i-spores .c2 { fill: var(--glow-2); }
+.i-spores .c3 { fill: #b6ff4f; }
+.spores .chip { animation: spore-pulse 2.8s ease-in-out infinite; }
+@keyframes spore-pulse { 50% { box-shadow: 0 0 10px color-mix(in srgb, var(--glow) 35%, transparent); } }
+.i-nutrients path:first-child { fill: #ffd166; filter: drop-shadow(0 0 3px rgba(255, 209, 102, 0.6)); }
+.nutrients strong { color: #ffe9a8; }
+.i-forest .cap { fill: var(--glow); filter: drop-shadow(0 0 3px var(--glow)); }
+.i-forest .stem { fill: #f4e6d0; }
+.i-forest .spot { fill: #fff; opacity: 0.85; }
+.i-beetle .shell { fill: #7a4a2c; stroke: #2b1a10; stroke-width: 0.8; }
+.i-beetle .head { fill: #3d2617; }
+.i-beetle .legs, .i-beetle .seam { stroke: #2b1a10; }
+.i-beetle .legs { stroke: #a77b55; }
+.beetles.danger .chip { border-color: rgba(255, 90, 70, 0.7); animation: danger 0.7s ease-in-out infinite alternate; }
+.beetles.danger .i-beetle .shell { fill: #b5402a; }
+.beetles.danger strong { color: #ff9a85; }
+@keyframes danger { from { box-shadow: 0 0 4px rgba(255, 70, 50, 0.4); } to { box-shadow: 0 0 14px rgba(255, 70, 50, 0.9); } }
+
+.goal { min-width: 180px; }
+.goal .stat-text { flex: 1; }
+.goal .label b { color: var(--ink); font-size: 14px; font-variant-numeric: tabular-nums; }
+/* The goal bar is a thread growing towards the goal, with a bright tip. */
 .bar { height: 8px; margin-top: 6px; border-radius: 4px; background: rgba(255, 255, 255, 0.1); overflow: hidden; }
+.goal .bar { overflow: visible; background: rgba(0, 0, 0, 0.35); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07); }
 .bar div { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--glow), var(--glow-2)); transition: width 0.2s; }
+.goal .bar div { position: relative; box-shadow: 0 0 8px color-mix(in srgb, var(--glow) 55%, transparent); }
+.goal .bar.lit div::after {
+  content: ''; position: absolute; right: -3px; top: 50%; width: 10px; height: 10px; margin-top: -5px; border-radius: 50%;
+  background: #fff; box-shadow: 0 0 8px 2px var(--glow-2); animation: tip 1.6s ease-in-out infinite;
+}
+@keyframes tip { 50% { transform: scale(0.7); opacity: 0.75; } }
 
 .tools { display: flex; gap: 8px; }
 .tools button, .card button {
@@ -42,8 +105,11 @@ input { -webkit-user-select: text; user-select: text; }
   border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; cursor: pointer;
   display: flex; flex-direction: column; align-items: flex-start; font-size: 14px;
 }
+.tools button { border-radius: 14px 10px 14px 10px; background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03)); }
+.tools button:not(:disabled):hover { background: rgba(255, 255, 255, 0.12); }
 .tools button small { color: var(--muted); font-size: 11px; }
-.tools button.on { border-color: var(--glow); box-shadow: 0 0 10px rgba(255, 79, 216, 0.45); }
+.tools button.on { border-color: var(--glow); box-shadow: 0 0 10px rgba(255, 79, 216, 0.45);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--glow) 50%, transparent), inset 0 0 10px color-mix(in srgb, var(--glow) 18%, transparent); }
 .tools button small.short { color: #ff7a6a; }
 .tools button.locked { opacity: 0.45; cursor: default; }
 .tools button.swap { border-style: dashed; }
@@ -67,7 +133,7 @@ kbd { font: inherit; font-size: 11px; opacity: 0.7; }
 .icon {
   width: 34px; height: 34px; display: grid; place-items: center; padding: 0;
   font: inherit; font-size: 17px; font-weight: 600; color: var(--ink);
-  background: rgba(255, 255, 255, 0.06); border: 1px solid var(--line); border-radius: 8px; cursor: pointer;
+  background: rgba(255, 255, 255, 0.06); border: 1px solid var(--line); border-radius: 50% 44% 50% 46%; cursor: pointer;
 }
 .icon:hover { background: rgba(255, 255, 255, 0.12); }
 .icon:disabled { opacity: 0.4; cursor: default; }
@@ -260,12 +326,18 @@ kbd { font: inherit; font-size: 11px; opacity: 0.7; }
 .hint { bottom: calc(6px + env(safe-area-inset-bottom)); }
 /* Sized by the game's own area (a container query), so it also works when the game is not the whole window. */
 @container app (max-width: 900px) or (max-height: 520px) {
-  .panel { top: calc(4px + env(safe-area-inset-top)); gap: 4px 12px; padding: 4px 10px; border-radius: 10px; }
-  .stat { min-width: 0; }
-  .stat .label { font-size: 10px; }
+  .panel { top: calc(4px + env(safe-area-inset-top)); gap: 4px 12px; padding: 4px 12px; border-radius: 18px 12px 18px 12px / 14px 18px 12px 16px; }
+  .panel { gap: 4px 10px; }
+  .stat { min-width: 0; gap: 5px; }
+  .stat .label { display: none; }
+  .goal .label { display: block; font-size: 0; }
+  .goal .label b { font-size: 13px; }
+  .stat .rate { display: none; }
+  .chip { width: auto; height: auto; background: none; border: none; }
+  .chip svg { width: 16px; height: 16px; }
   .stat strong { font-size: 15px; }
   .stat .rate { font-size: 10px; }
-  .goal { min-width: 110px; }
+  .goal { min-width: 100px; }
   .bar { margin-top: 3px; height: 6px; }
   .tools { gap: 4px; }
   .tools button { padding: 3px 8px; font-size: 12px; }
@@ -284,6 +356,7 @@ kbd { font: inherit; font-size: 11px; opacity: 0.7; }
 @container app (max-width: 520px) {
   .stat.time, .stat .rate { display: none; }
   .goal { min-width: 80px; }
+  .goal .of { display: none; }
 }
 
 /* --- The upgrade tree --- */

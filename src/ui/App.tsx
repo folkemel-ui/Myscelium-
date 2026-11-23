@@ -35,6 +35,7 @@ interface Snapshot {
   growCost: number;
   mushroomCost: number;
   motherAttacked: boolean;
+  eating: boolean; // a beetle is eating a mushroom or tower
 }
 
 const snapshot = (g: Game): Snapshot => ({
@@ -50,8 +51,13 @@ const snapshot = (g: Game): Snapshot => ({
   history: g.status === 'playing' ? null : g.history.slice(),
   growCost: g.mods.growCost,
   mushroomCost: g.mods.mushroomCost,
-  motherAttacked: underAttack(g).some((a) => a.mother),
+  ...attackState(g),
 });
+
+const attackState = (g: Game) => {
+  const a = underAttack(g);
+  return { motherAttacked: a.some((x) => x.mother), eating: a.length > 0 };
+};
 
 // The build bar: tools that act where you click, and swaps that happen at once. Some open with
 // the player's level; a price turns red when you can't pay it.
@@ -433,6 +439,10 @@ export function App() {
   useEffect(() => {
     const s = SCHEMES.find((x) => x.id === profile.scheme) ?? SCHEMES[0];
     applyScheme(s.glow, s.mother);
+    // The panels glow in the scheme's first two colours.
+    const css = (c: number) => `#${c.toString(16).padStart(6, '0')}`;
+    document.documentElement.style.setProperty('--glow', css(s.glow[0]));
+    document.documentElement.style.setProperty('--glow-2', css(s.glow[1]));
     if (view.current && screen === 'menu') view.current.setGame(game.current);
   }, [profile.scheme]);
 
@@ -487,28 +497,44 @@ export function App() {
       <div className="stage" ref={host} />
       <header className="panel" ref={panel} hidden={screen === 'menu'}>
         <div className="stat time">
-          <span className="label">Time</span>
-          <strong>{formatTime(snap.time)}</strong>
+          <span className="chip"><TimeIcon /></span>
+          <div className="stat-text">
+            <span className="label">Time</span>
+            <strong>{formatTime(snap.time)}</strong>
+          </div>
         </div>
-        <div className="stat">
-          <span className="label">Spores</span>
-          <strong>{Math.floor(snap.spores)}</strong>
-          <span className="rate">+{snap.sporeRate.toFixed(1)}/s</span>
+        <div className="stat spores" title="Spores: spend them to grow mycelium">
+          <span className="chip"><SporeIcon /></span>
+          <div className="stat-text">
+            <span className="label">Spores</span>
+            <strong>{Math.floor(snap.spores)}</strong>
+            <span className="rate">+{snap.sporeRate.toFixed(1)}/s</span>
+          </div>
         </div>
-        <div className="stat">
-          <span className="label">Nutrients</span>
-          <strong ref={nutrientsEl} key={bump} className={bump ? 'bump' : ''}>{Math.floor(snap.nutrients)}</strong>
+        <div className="stat nutrients" title="Nutrients: spend them on mushrooms and more">
+          <span className="chip"><NutrientIcon /></span>
+          <div className="stat-text">
+            <span className="label">Nutrients</span>
+            <strong ref={nutrientsEl} key={bump} className={bump ? 'bump' : ''}>{Math.floor(snap.nutrients)}</strong>
+          </div>
         </div>
-        <div className="stat goal">
-          <span className="label">
-            Forest held: {Math.round(snap.held * 100)}% of {Math.round(WIN_COVERAGE * 100)}%
-          </span>
-          <div className="bar"><div style={{ width: `${goal * 100}%` }} /></div>
+        <div className="stat goal" title={`Forest held: ${Math.round(snap.held * 100)}% of the ${Math.round(WIN_COVERAGE * 100)}% needed`}>
+          <span className="chip"><ForestIcon /></span>
+          <div className="stat-text">
+            <span className="label">
+              Forest held <b>{Math.round(snap.held * 100)}%</b><span className="of"> of {Math.round(WIN_COVERAGE * 100)}%</span>
+            </span>
+            <div className={`bar${goal > 0.02 ? ' lit' : ''}`}><div style={{ width: `${goal * 100}%` }} /></div>
+          </div>
         </div>
-        <div className="stat">
-          <span className="label">Beetles</span>
-          <strong>{snap.beetles}</strong>
-          <span className="rate">{snap.kills} beaten</span>
+        <div className={`stat beetles${snap.eating ? ' danger' : ''}`}
+          title={snap.eating ? 'Beetles are eating a mushroom!' : 'Beetles in the forest'}>
+          <span className="chip"><BeetleIcon /></span>
+          <div className="stat-text">
+            <span className="label">Beetles</span>
+            <strong>{snap.beetles}</strong>
+            <span className="rate">{snap.kills} beaten</span>
+          </div>
         </div>
         <div className="tools">
           {BAR.map((t) => {
@@ -687,4 +713,61 @@ function FullscreenIcon({ out }: { out: boolean }) {
     ? 'M6 2v4H2M10 2v4h4M6 14v-4H2M10 14v-4h4'
     : 'M2 6V2h4M14 6V2h-4M2 10v4h4M14 10v4h-4';
   return <svg viewBox="0 0 16 16" aria-hidden="true"><path d={d} fill="none" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>;
+}
+
+// --- Panel icons: drawn in the game's own style (glowing spores, gold nutrients, a beetle) ---
+
+function TimeIcon() {
+  return (
+    <svg viewBox="0 0 20 20" aria-hidden="true" className="i-time">
+      <circle cx="10" cy="10.5" r="7" fill="none" strokeWidth="1.6" />
+      <path d="M10 6.5v4.2l2.8 1.8" fill="none" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M8 2.2h4" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function SporeIcon() {
+  return (
+    <svg viewBox="0 0 20 20" aria-hidden="true" className="i-spores">
+      <circle cx="10" cy="10" r="3.4" className="c1" />
+      <circle cx="4.6" cy="6" r="1.9" className="c2" />
+      <circle cx="15.6" cy="5.4" r="1.5" className="c3" />
+      <circle cx="15" cy="14.8" r="2.1" className="c2" />
+      <circle cx="5" cy="15" r="1.3" className="c3" />
+      <circle cx="9" cy="9" r="1.1" fill="#fff" opacity="0.75" />
+    </svg>
+  );
+}
+
+function NutrientIcon() {
+  return (
+    <svg viewBox="0 0 20 20" aria-hidden="true" className="i-nutrients">
+      <path d="M10 2.2C7 6.4 4.8 9.2 4.8 12.2a5.2 5.2 0 0 0 10.4 0c0-3-2.2-5.8-5.2-10z" />
+      <path d="M7.6 12.4a2.6 2.6 0 0 0 2.2 2.6" fill="none" stroke="#fff6cc" strokeWidth="1.3" strokeLinecap="round" opacity="0.8" />
+    </svg>
+  );
+}
+
+function ForestIcon() {
+  return (
+    <svg viewBox="0 0 20 20" aria-hidden="true" className="i-forest">
+      <path d="M2.5 10.2C3.2 5.6 6.3 3.2 10 3.2s6.8 2.4 7.5 7c.1.6-.4 1-1 1h-13c-.6 0-1.1-.4-1-1z" className="cap" />
+      <path d="M8.3 11.2h3.4l.5 5.6c0 .6-.4 1-1 1H8.8c-.6 0-1-.4-1-1z" className="stem" />
+      <circle cx="7" cy="7" r="1.1" className="spot" /><circle cx="11.6" cy="5.6" r="0.9" className="spot" /><circle cx="13.6" cy="8.4" r="0.8" className="spot" />
+    </svg>
+  );
+}
+
+function BeetleIcon() {
+  return (
+    <svg viewBox="0 0 20 20" aria-hidden="true" className="i-beetle">
+      <path d="M5.2 7.5 2.2 6M4.8 11 1.8 11M5.4 14.4 2.6 16.6M14.8 7.5l3-1.5M15.2 11h3M14.6 14.4l2.8 2.2M8.4 3.6 7 1.6M11.6 3.6 13 1.6"
+        fill="none" strokeWidth="1.3" strokeLinecap="round" className="legs" />
+      <ellipse cx="10" cy="5" rx="2.6" ry="1.9" className="head" />
+      <ellipse cx="10" cy="11.6" rx="5" ry="6.2" className="shell" />
+      <path d="M10 6v11.6" strokeWidth="0.9" className="seam" />
+      <ellipse cx="8" cy="9.4" rx="1.1" ry="2" fill="#fff" opacity="0.22" />
+    </svg>
+  );
 }
