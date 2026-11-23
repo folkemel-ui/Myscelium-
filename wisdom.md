@@ -104,8 +104,6 @@ Things learned while building Mycelium that are worth knowing before the next ch
 - Rewriting a file with `cat > file` empties it for a moment; the Vite dev server once read it
   in that moment and kept serving an empty module (blank page, "does not provide an export").
   Re-saving the file fixed it. Write files in one go (the Write tool, or a script).
-- Inline `node - <<EOF` scripts with backticks and `$` in them can break the shell's quoting;
-  put longer patch scripts in a file in the scratchpad and run that.
 - Testing saves in the browser writes to the page's localStorage: note what is there first and
   put it back (or clear the `mycelium.` keys) afterwards, so the player's own progress is kept.
 - Additive glow adds up fast: the first territory glow (45% strength in bright moss) washed the
@@ -148,8 +146,26 @@ Things learned while building Mycelium that are worth knowing before the next ch
   need a default in `loadRound` so older saves still load.
 - Player-level unlocks are checked in the UI only (`unlocked` in progress.ts); the rules let
   anything be built, which keeps the rules' tests simple.
-- A bash heredoc holding JS with backticks and `${}` broke in this shell; write patch scripts
-  with the Write tool instead.
+- A bash heredoc holding JS with backticks and `${}` broke in this shell (even quoted `<<'EOF'`);
+  write patch scripts to the scratchpad with the Write tool and run them with node.
+- The shell starts each command in the Tha City folder: `cd` into Mycelium in every command.
+- Clicking the map by computed screen coordinates is unreliable: the browser tool's coordinate
+  frame (e.g. 800×500) is not the page's pixels (1280×800), and clicks landed 3 tiles off. Hover
+  once and read `view.pointerTile` to calibrate, or call the rules directly.
+- In the menu, clicking a forest's row only picks it; the Play button starts the round.
+- While the pane is hidden the round's clock doesn't move. Step it by hand from the page:
+  `const { step } = await import('/src/game/sim.ts')` and `step(view.game, 0.1)` in a loop. Events
+  pile up then (the view isn't drawing), so clear `game.events` before counting them.
+- A quiet test round: `g.rules = { ...g.rules, firstBeetleAt: 1e9 }` stops beetles coming.
+- To test level-locked things, raise `level` in the saved profile, reload, test, then put the
+  backed-up profile back exactly.
+- The console keeps errors from earlier hot reloads (half-written files); check the file names
+  and stack before chasing one. Reload and read it again.
+- `gh` isn't installed. Check a publish with GitHub's public API:
+  `curl -s "https://api.github.com/repos/folkemel-ui/Myscelium-/actions/runs?per_page=1"`.
+- iPhone Safari won't let a page hide its address bar and tabs, and has no fullscreen for pages.
+  Started from the Home Screen the game fills the screen (`display: fullscreen` in the manifest),
+  but that copy has its own storage: the profile doesn't carry over by itself.
 - Enemies need a way to leave. Before beetles got full and walked off, they piled up to 195 on
   one map.
 - The CSS colours `--glow` and `--glow-2` are set from the colour scheme (App.tsx), so panels and
