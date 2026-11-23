@@ -4,7 +4,8 @@ import { WIN_COVERAGE } from '../game/constants';
 import {
   award, buyUpgrade, finishRound, unlocked, UNLOCKS, type UnlockId, forestOpen, LEVELS, modsFor, motherTier, SCHEMES, totalXp, xpToNext, type Achievement, type Profile, type SchemeId, type UpgradeId, type XpLine,
 } from '../game/progress';
-import { coverage, digest, sporesPerSecond, step, underAttack } from '../game/sim';
+import { burstable, burstAll, coverage, digest, sporesPerSecond, step, underAttack } from '../game/sim';
+import { describeTile } from '../game/info';
 import { createLevel, type Game, type Mods, type RoundStats } from '../game/world';
 import { GameView, type Tool } from '../render/GameView';
 import {
@@ -37,6 +38,7 @@ interface Snapshot {
   mushroomCost: number;
   motherAttacked: boolean;
   eating: boolean; // a beetle is eating a mushroom or tower
+  burstable: number; // ready mushrooms with a beetle in reach (what Burst all would burst)
 }
 
 const snapshot = (g: Game): Snapshot => ({
@@ -53,6 +55,7 @@ const snapshot = (g: Game): Snapshot => ({
   growCost: g.mods.growCost,
   mushroomCost: g.mods.mushroomCost,
   ...attackState(g),
+  burstable: burstable(g).length,
 });
 
 const attackState = (g: Game) => {
@@ -67,25 +70,26 @@ interface BarItem {
   key: string;
   name: string;
   cost: (s: Snapshot) => string;
+  short: (s: Snapshot) => string; // the price as a tiny number, for the thumb bar
   afford: (s: Snapshot) => boolean;
   tool?: Tool; // a tool to pick; otherwise `into` is a swap done straight away
   into?: 'nutrients' | 'spores';
   unlock?: UnlockId;
 }
 const BAR: BarItem[] = [
-  { id: 'grow', tool: 'grow', key: '1', name: 'Grow mycelium', cost: (s) => `${s.growCost} spores a tile`, afford: (s) => s.spores >= s.growCost },
-  { id: 'mushroom', tool: 'mushroom', key: '2', name: 'Grow mushroom', cost: (s) => `${s.mushroomCost} nutrients`, afford: (s) => s.nutrients >= s.mushroomCost },
-  { id: 'shelf', tool: 'shelf', key: '3', name: 'Shelf fungus', unlock: 'shelf', cost: () => `${C.SHELF_COST} nutrients`, afford: (s) => s.nutrients >= C.SHELF_COST },
+  { id: 'grow', tool: 'grow', key: '1', name: 'Grow mycelium', short: (s) => `${s.growCost}`, cost: (s) => `${s.growCost} spores a tile`, afford: (s) => s.spores >= s.growCost },
+  { id: 'mushroom', tool: 'mushroom', key: '2', name: 'Grow mushroom', short: (s) => `${s.mushroomCost}`, cost: (s) => `${s.mushroomCost} nutrients`, afford: (s) => s.nutrients >= s.mushroomCost },
+  { id: 'shelf', tool: 'shelf', key: '3', name: 'Shelf fungus', unlock: 'shelf', short: () => `${C.SHELF_COST}`, cost: () => `${C.SHELF_COST} nutrients`, afford: (s) => s.nutrients >= C.SHELF_COST },
   {
-    id: 'tower', tool: 'tower', key: '4', name: 'Spore tower', unlock: 'tower', cost: () => `${C.TOWER_NUTRIENTS} nutrients, ${C.TOWER_SPORES} spores`,
+    id: 'tower', tool: 'tower', key: '4', name: 'Spore tower', unlock: 'tower', short: () => `${C.TOWER_NUTRIENTS}+${C.TOWER_SPORES}`, cost: () => `${C.TOWER_NUTRIENTS} nutrients, ${C.TOWER_SPORES} spores`,
     afford: (s) => s.nutrients >= C.TOWER_NUTRIENTS && s.spores >= C.TOWER_SPORES,
   },
   {
-    id: 'toNutrients', into: 'nutrients', key: '5', name: 'Digest spores', unlock: 'digest',
+    id: 'toNutrients', into: 'nutrients', key: '5', name: 'Digest spores', unlock: 'digest', short: () => `${C.DIGEST_SPORES_IN}→${C.DIGEST_NUTRIENTS_OUT}`,
     cost: () => `${C.DIGEST_SPORES_IN} spores → ${C.DIGEST_NUTRIENTS_OUT} nutrients`, afford: (s) => s.spores >= C.DIGEST_SPORES_IN,
   },
   {
-    id: 'toSpores', into: 'spores', key: '6', name: 'Digest nutrients', unlock: 'digest',
+    id: 'toSpores', into: 'spores', key: '6', name: 'Digest nutrients', unlock: 'digest', short: () => `${C.DIGEST_NUTRIENTS_IN}→${C.DIGEST_SPORES_OUT}`,
     cost: () => `${C.DIGEST_NUTRIENTS_IN} nutrients → ${C.DIGEST_SPORES_OUT} spores`, afford: (s) => s.nutrients >= C.DIGEST_NUTRIENTS_IN,
   },
 ];
@@ -96,10 +100,12 @@ const TOUCH_HELP: [string, string][] = [
   ['Drag from your network', 'Grow mycelium (Grow tool)'],
   ['Tap your mycelium', 'Grow a mushroom (Mushroom tool)'],
   ['Tap a mushroom', 'Burst it at beetles nearby'],
+  ['Burst all (the big button)', 'Burst every ready mushroom with a beetle in reach'],
+  ['Hold a finger on something', 'See what it is: health, cooldowns, nutrients'],
   ['Tap a tree by your network', 'Grow a shelf fungus (Shelf tool)'],
   ['Pinch', 'Zoom in and out'],
   ['Drag with two fingers', 'Move the view'],
-  ['Buttons at the top', 'Pause, save, main menu, help'],
+  ['Buttons on the left', 'Pause, save, main menu, help'],
 ];
 
 // Is this a touch screen (a phone or tablet) rather than a mouse?
@@ -117,6 +123,7 @@ const HELP: [string, string][] = [
   ['3 / 4', `Shelf fungus (level ${levelOf('shelf')}) / Spore tower (level ${levelOf('tower')})`],
   ['5 / 6', `Digest spores into nutrients / nutrients into spores (level ${levelOf('digest')})`],
   ['B', 'Burst the ready mushroom nearest the mouse'],
+  ['A', 'Burst all: every ready mushroom with a beetle in reach'],
   ['Space or P', 'Pause and resume'],
   ['R', 'Restart (press twice during a round)'],
   ['S', 'Save the round to a slot'],
@@ -147,6 +154,7 @@ export function App() {
   const host = useRef<HTMLDivElement>(null);
   const panel = useRef<HTMLElement>(null);
   const topSpace = useRef(76); // where the forest may start, below the panel
+  const sideSpace = useRef({ left: 0, right: 0, bottom: 0 }); // and the room the thumb bars take
   const nutrientsEl = useRef<HTMLElement>(null);
   const [bump, setBump] = useState(0); // goes up as nutrient sparkles land, to make the number jump
   const view = useRef<GameView | null>(null);
@@ -158,6 +166,15 @@ export function App() {
   const [help, setHelp] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const [touch] = useState(isTouch);
+  // On a phone (a touch screen and a small game area) the tools and buttons move to the sides,
+  // where thumbs reach, and the top keeps only the numbers.
+  const appEl = useRef<HTMLDivElement>(null);
+  const [small, setSmall] = useState(false);
+  const thumbs = touch && small;
+  const toolBar = useRef<HTMLElement>(null);
+  const iconBar = useRef<HTMLElement>(null);
+  // What a finger held on the map is showing (a tile, and where on the screen).
+  const [info, setInfo] = useState<{ x: number; y: number; sx: number; sy: number } | null>(null);
   // A phone held upright gets a hint that the forest is bigger sideways (once a visit).
   const [upright, setUpright] = useState(false);
   const [uprightSeen, setUprightSeen] = useState(false);
@@ -184,6 +201,13 @@ export function App() {
     if (why) say(why);
     setSnap(snapshot(game.current));
   };
+  // Burst every ready mushroom with a beetle in reach.
+  const pressBurstAll = () => {
+    if (paused || game.current.status !== 'playing') return;
+    const why = burstAll(game.current);
+    if (why) say(why);
+    setSnap(snapshot(game.current));
+  };
 
   useEffect(() => {
     let disposed = false;
@@ -207,11 +231,12 @@ export function App() {
     };
     const onSparkle = () => setBump((n) => n + 1);
     const onStage = (stage: number) => setStageBanner({ stage, id: Date.now() });
-    GameView.create(host.current!, game.current, { onMessage: say, nutrientCounter, onSparkle, onStage }, onTick).then((v) => {
+    GameView.create(host.current!, game.current, { onMessage: say, nutrientCounter, onSparkle, onStage, onInfo: setInfo }, onTick).then((v) => {
       if (disposed) v.destroy();
       else {
         view.current = v;
         v.topSpace = topSpace.current;
+        v.sideSpace = sideSpace.current;
         // In development, the live view is on window.view (not one thrown away by React starting twice).
         if (import.meta.env.DEV) (window as unknown as { view: GameView }).view = v;
       }
@@ -274,6 +299,39 @@ export function App() {
     setProfile(result.profile);
   }, [snap.status, screen]);
 
+  // Is the game area small (a phone)? The same sizes as the compact panel's container query.
+  useEffect(() => {
+    const el = appEl.current;
+    if (!el) return;
+    const watch = new ResizeObserver(() => setSmall(el.clientWidth <= 900 || el.clientHeight <= 520));
+    watch.observe(el);
+    return () => watch.disconnect();
+  }, []);
+
+  // The forest keeps clear of the thumb bars: columns at the sides, or a row along the bottom.
+  useEffect(() => {
+    const app = appEl.current;
+    const fit = () => {
+      const space = { left: 0, right: 0, bottom: 0 };
+      const box = app?.getBoundingClientRect();
+      for (const el of thumbs ? [toolBar.current, iconBar.current] : []) {
+        if (!el || !box) continue;
+        const r = el.getBoundingClientRect();
+        if (r.width === 0) continue;
+        if (r.height > r.width) {
+          if (r.left - box.left < box.width / 2) space.left = Math.max(space.left, r.right - box.left);
+          else space.right = Math.max(space.right, box.right - r.left);
+        } else space.bottom = Math.max(space.bottom, box.bottom - r.top);
+      }
+      sideSpace.current = space;
+      if (view.current) view.current.sideSpace = space;
+    };
+    const watch = new ResizeObserver(fit);
+    for (const el of [app, toolBar.current, iconBar.current]) if (el) watch.observe(el);
+    fit();
+    return () => watch.disconnect();
+  }, [thumbs, screen]);
+
   // The forest starts below the panel, however tall it is.
   useEffect(() => {
     const el = panel.current;
@@ -287,6 +345,8 @@ export function App() {
     fit();
     return () => watcher.disconnect();
   }, []);
+
+  useEffect(() => setInfo(null), [screen, snap.status]);
 
   // Switching to another tab pauses the round.
   useEffect(() => {
@@ -487,6 +547,8 @@ export function App() {
         view.current?.resetCamera();
       } else if (key === 'b') {
         view.current?.burstNearest();
+      } else if (key === 'a') {
+        pressBurstAll();
       } else if (key === 'f') {
         if (!e.repeat) toggleFullscreen();
       } else if (key === 'r' && !e.repeat) {
@@ -501,10 +563,58 @@ export function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, [help, paused, saving, screen, profile]);
 
+  const tools = (
+    <div className={thumbs ? 'tools thumb-tools' : 'tools'}>
+      {BAR.map((t) => {
+        const open = !t.unlock || unlocked(profile, t.unlock);
+        if (thumbs && !open) return null;
+        return (
+          <button key={t.id} disabled={!open} onClick={() => pressBar(t)}
+            className={[tool === t.tool ? 'on' : '', open ? '' : 'locked', t.into ? 'swap' : ''].join(' ')}
+            title={open ? `${t.name} (${t.key}): ${t.cost(snap)}` : `Opens at level ${levelOf(t.unlock!)}`}
+            aria-label={t.name}>
+            <span className="tool-name"><ToolIcon id={t.id} /><kbd>{t.key}</kbd> <span className="name">{t.name}</span></span>
+            <small className={open && !t.afford(snap) ? 'short' : ''}>
+              {!open ? `Level ${levelOf(t.unlock!)}` : thumbs ? t.short(snap) : t.cost(snap)}
+            </small>
+          </button>
+        );
+      })}
+      <button className={`burst-all${snap.burstable > 0 ? ' ready' : ''}`} onClick={pressBurstAll}
+        disabled={snap.status !== 'playing'} aria-label="Burst all"
+        title="Burst all (A): every ready mushroom with a beetle in reach">
+        <span className="tool-name"><ToolIcon id="burstAll" /><kbd>A</kbd> <span className="name">Burst all</span></span>
+        <small>{snap.burstable > 0 ? `${snap.burstable} ready` : 'none near beetles'}</small>
+        {thumbs && snap.burstable > 0 && <b className="badge">{snap.burstable}</b>}
+      </button>
+    </div>
+  );
+  const icons = (
+<div className={thumbs ? 'icons thumb-icons' : 'icons'}>
+      <button className="icon" onClick={togglePause} title={paused ? 'Resume (Space)' : 'Pause (Space)'}
+        aria-label={paused ? 'Resume' : 'Pause'} disabled={snap.status !== 'playing'}>
+        {paused ? <PlayIcon /> : <PauseIcon />}
+      </button>
+      <button className="icon" onClick={() => setSaving(true)} title="Save to a slot (S)" aria-label="Save"
+        disabled={snap.status !== 'playing'}>
+        <SaveIcon />
+      </button>
+      <button className="icon" onClick={leaveRound} title="Main menu (the round is kept)" aria-label="Main menu">
+        <MenuIcon />
+      </button>
+      <button className="icon" onClick={() => setHelp((h) => !h)} title="Help (H)" aria-label="Help">?</button>
+      {document.fullscreenEnabled && (
+        <button className="icon" onClick={toggleFullscreen} title={fullscreen ? 'Leave fullscreen (F)' : 'Fullscreen (F)'}
+          aria-label={fullscreen ? 'Leave fullscreen' : 'Fullscreen'}>
+          <FullscreenIcon out={fullscreen} />
+        </button>
+      )}
+    </div>
+  );
   const goal = Math.min(1, snap.held / WIN_COVERAGE);
   const won = snap.status === 'won';
   return (
-    <div className="app">
+    <div className={`app${touch ? ' touch' : ''}${thumbs ? ' thumbs' : ''}`} ref={appEl}>
       <div className="stage" ref={host} />
       <header className="panel" ref={panel} hidden={screen === 'menu'}>
         <div className="stat time">
@@ -547,40 +657,16 @@ export function App() {
             <span className="rate">{snap.kills} beaten</span>
           </div>
         </div>
-        <div className="tools">
-          {BAR.map((t) => {
-            const open = !t.unlock || unlocked(profile, t.unlock);
-            return (
-              <button key={t.id} disabled={!open} onClick={() => pressBar(t)}
-                className={[tool === t.tool ? 'on' : '', open ? '' : 'locked', t.into ? 'swap' : ''].join(' ')}
-                title={open ? `${t.name} (${t.key}): ${t.cost(snap)}` : `Opens at level ${levelOf(t.unlock!)}`}>
-                <span><kbd>{t.key}</kbd> {t.name}</span>
-                <small className={open && !t.afford(snap) ? 'short' : ''}>{open ? t.cost(snap) : `Level ${levelOf(t.unlock!)}`}</small>
-              </button>
-            );
-          })}
-        </div>
-        <div className="icons">
-          <button className="icon" onClick={togglePause} title={paused ? 'Resume (Space)' : 'Pause (Space)'}
-            aria-label={paused ? 'Resume' : 'Pause'} disabled={snap.status !== 'playing'}>
-            {paused ? <PlayIcon /> : <PauseIcon />}
-          </button>
-          <button className="icon" onClick={() => setSaving(true)} title="Save to a slot (S)" aria-label="Save"
-            disabled={snap.status !== 'playing'}>
-            <SaveIcon />
-          </button>
-          <button className="icon" onClick={leaveRound} title="Main menu (the round is kept)" aria-label="Main menu">
-            <MenuIcon />
-          </button>
-          <button className="icon" onClick={() => setHelp((h) => !h)} title="Help (H)" aria-label="Help">?</button>
-          {document.fullscreenEnabled && (
-            <button className="icon" onClick={toggleFullscreen} title={fullscreen ? 'Leave fullscreen (F)' : 'Fullscreen (F)'}
-              aria-label={fullscreen ? 'Leave fullscreen' : 'Fullscreen'}>
-              <FullscreenIcon out={fullscreen} />
-            </button>
-          )}
-        </div>
+        {!thumbs && tools}
+        {!thumbs && icons}
       </header>
+      {thumbs && screen === 'game' && (
+        <>
+          <nav className="thumb-bar right" ref={toolBar} aria-label="Tools">{tools}</nav>
+          <nav className="thumb-bar left" ref={iconBar} aria-label="Game">{icons}</nav>
+        </>
+      )}
+      {info && screen === 'game' && <InfoBubble at={info} game={game.current} tick={snap.time} onClose={() => setInfo(null)} />}
       {screen === 'game' && (
         <p className="hint">
           {touch
@@ -593,7 +679,7 @@ export function App() {
       )}
       {message && <div className="toast" key={message.id}>{message.text}</div>}
       {snap.motherAttacked && screen === 'game' && snap.status === 'playing' && (
-        <div className="mother-alarm" role="alert">The mother is being eaten! Burst her (click or B)</div>
+        <div className="mother-alarm" role="alert">The mother is being eaten! {touch ? 'Tap her to burst her' : 'Burst her (click or B)'}</div>
       )}
       {stageBanner && screen === 'game' && snap.status === 'playing' && (
         <div className="stage-banner" key={stageBanner.id} role="status">
@@ -781,4 +867,73 @@ function BeetleIcon() {
       <ellipse cx="8" cy="9.4" rx="1.1" ry="2" fill="#fff" opacity="0.22" />
     </svg>
   );
+}
+
+// What a finger held on the map shows: what is on that tile, kept up to date (cooldowns, health)
+// while it is open. Tap it, or touch the map, to close it.
+function InfoBubble({ at, game, onClose }: { at: { x: number; y: number; sx: number; sy: number }; game: Game; tick: number; onClose: () => void }) {
+  useEffect(() => {
+    const t = setTimeout(onClose, 6000);
+    return () => clearTimeout(t);
+  }, [at]);
+  const info = describeTile(game, at.x, at.y);
+  if (!info) return null;
+  const below = at.sy < 150; // too near the top: show it under the finger
+  return (
+    <div className={`info-bubble${below ? ' below' : ''}${info.warning ? ' danger' : ''}`} role="status" onClick={onClose}
+      style={{ left: Math.min(Math.max(at.sx, 120), window.innerWidth - 120), top: below ? at.sy + 28 : at.sy - 28 }}>
+      <strong>{info.title}</strong>
+      {info.lines.map((l) => <span key={l}>{l}</span>)}
+      {info.warning && <span className="warning">{info.warning}</span>}
+    </div>
+  );
+}
+
+// Pictures for the tools, in the game's own style.
+function ToolIcon({ id }: { id: string }) {
+  const svg = (children: React.ReactNode) => <svg viewBox="0 0 20 20" aria-hidden="true" className={`tool-icon t-${id}`}>{children}</svg>;
+  switch (id) {
+    case 'grow': // threads branching out from a knot
+      return svg(<>
+        <path d="M4 16c3-2 4-5 6-6s5-1 7-5M10 10c-1-3 0-5-2-7M10 10c2 2 5 2 7 5" fill="none" strokeWidth="1.6" strokeLinecap="round" className="thread" />
+        <circle cx="10" cy="10" r="1.8" className="knot" />
+      </>);
+    case 'mushroom':
+      return svg(<>
+        <path d="M2.8 10.4C3.4 5.8 6.4 3.4 10 3.4s6.6 2.4 7.2 7c.1.6-.4 1-1 1H3.8c-.6 0-1.1-.4-1-1z" className="cap" />
+        <path d="M8.4 11.4h3.2l.5 5.2c0 .6-.4 1-1 1H8.9c-.6 0-1-.4-1-1z" className="stem" />
+        <circle cx="7.2" cy="7.2" r="1" className="spot" /><circle cx="12" cy="6" r="0.8" className="spot" />
+      </>);
+    case 'shelf': // amber brackets on a trunk
+      return svg(<>
+        <rect x="3" y="2" width="4" height="16" rx="1.5" className="trunk" />
+        <path d="M7 5h6.5c1 0 1.4 1.4.4 2L7 8.6zM7 9.6h8c1 0 1.4 1.4.4 2L7 13.2zM7 14h5.5c1 0 1.4 1.4.4 2L7 17.2z" className="bracket" />
+      </>);
+    case 'tower': // a tall stalk with a glowing spore sac
+      return svg(<>
+        <path d="M9 18V8.5h2V18z" className="stem" />
+        <ellipse cx="10" cy="6" rx="4" ry="3.6" className="sac" />
+        <circle cx="16.5" cy="3" r="1" className="bolt" /><circle cx="14.6" cy="4.4" r="0.6" className="bolt" />
+      </>);
+    case 'toNutrients': // spores into a gold drop
+      return svg(<>
+        <circle cx="4" cy="6" r="1.6" className="spore" /><circle cx="6.5" cy="10" r="1.2" className="spore" /><circle cx="3.5" cy="13" r="1" className="spore" />
+        <path d="M8.6 10h2.6M10 8.6l1.4 1.4-1.4 1.4" fill="none" strokeWidth="1.2" strokeLinecap="round" className="arrow" />
+        <path d="M15.5 4.5c-2 2.8-3.4 4.6-3.4 6.6a3.4 3.4 0 0 0 6.8 0c0-2-1.4-3.8-3.4-6.6z" className="drop" />
+      </>);
+    case 'toSpores': // a gold drop into spores
+      return svg(<>
+        <path d="M4.5 4.5c-2 2.8-3.4 4.6-3.4 6.6a3.4 3.4 0 0 0 6.8 0c0-2-1.4-3.8-3.4-6.6z" className="drop" />
+        <path d="M8.8 10h2.6M10.2 8.6l1.4 1.4-1.4 1.4" fill="none" strokeWidth="1.2" strokeLinecap="round" className="arrow" />
+        <circle cx="15.5" cy="6" r="1.6" className="spore" /><circle cx="17" cy="10.5" r="1.2" className="spore" /><circle cx="14.6" cy="13.6" r="1.4" className="spore" />
+      </>);
+    default: // burst all: a cloud of spores bursting outwards
+      return svg(<>
+        <circle cx="10" cy="10" r="3" className="core" />
+        {[0, 1, 2, 3, 4, 5, 6, 7].map((k) => {
+          const a = (k / 8) * Math.PI * 2;
+          return <circle key={k} cx={10 + Math.cos(a) * 7} cy={10 + Math.sin(a) * 7} r={k % 2 ? 1.1 : 1.6} className="puff" />;
+        })}
+      </>);
+  }
 }

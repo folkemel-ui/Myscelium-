@@ -22,6 +22,8 @@ export type Tool = 'grow' | 'mushroom' | 'shelf' | 'tower';
 
 // How far (screen pixels) a finger may move and still count as a tap rather than a drag.
 const TAP_SLOP = 8;
+// How long (ms) a finger held still on the map counts as asking what is there.
+const LONG_PRESS = 450;
 
 // The smallest a tile should be when a round starts (screen pixels). Where the whole map would be
 // smaller than that (a phone), the round starts zoomed in on the mother instead.
@@ -68,6 +70,8 @@ export interface ViewEvents {
   nutrientCounter: () => { x: number; y: number } | null;
   onSparkle: () => void; // a nutrient sparkle reached the counter
   onStage?: (stage: number) => void; // a new stage of the trip was reached
+  // A finger held still on a tile: show what is there (screen point in the canvas's pixels); null to close.
+  onInfo?: (at: { x: number; y: number; sx: number; sy: number } | null) => void;
 }
 
 export class GameView {
@@ -232,8 +236,16 @@ export class GameView {
     return this.cam.zoom;
   }
 
+  private pressTimer: ReturnType<typeof setTimeout> | null = null;
+  private cancelPress() {
+    if (this.pressTimer) clearTimeout(this.pressTimer);
+    this.pressTimer = null;
+  }
+
   private pointerDown(e: FederatedPointerEvent) {
     this.pointers.set(e.pointerId, { x: e.global.x, y: e.global.y });
+    this.events.onInfo?.(null); // any touch closes what a long press showed
+    this.cancelPress();
     // A second finger: pinching and moving the view, not growing; what the first finger was about
     // to do is forgotten.
     if (this.pointers.size >= 2) {
@@ -248,7 +260,16 @@ export class GameView {
     }
     if (this.frozen) return;
     if (e.pointerType === 'touch') {
-      this.pendingTap = { id: e.pointerId, x: e.global.x, y: e.global.y, tile: this.tileAt(e) };
+      const tap = { id: e.pointerId, x: e.global.x, y: e.global.y, tile: this.tileAt(e) };
+      this.pendingTap = tap;
+      // Held still: say what is there instead of acting on it.
+      this.pressTimer = setTimeout(() => {
+        this.pressTimer = null;
+        if (this.pendingTap !== tap || tap.tile < 0) return;
+        this.pendingTap = null;
+        const g = this.game;
+        this.events.onInfo?.({ x: tap.tile % g.w, y: Math.floor(tap.tile / g.w), sx: tap.x, sy: tap.y });
+      }, LONG_PRESS);
       return;
     }
     this.act(this.tileAt(e));
@@ -298,6 +319,7 @@ export class GameView {
     const tap = this.pendingTap;
     if (tap && tap.id === e.pointerId && Math.hypot(now.x - tap.x, now.y - tap.y) > TAP_SLOP) {
       this.pendingTap = null;
+      this.cancelPress();
       this.act(tap.tile);
     }
     if (!this.dragging || i < 0 || i === this.lastDragTile) return;
@@ -321,6 +343,7 @@ export class GameView {
 
   private pointerUp(e: FederatedPointerEvent) {
     this.pointers.delete(e.pointerId);
+    this.cancelPress();
     // A finger lifted without moving: a tap.
     const tap = this.pendingTap;
     if (tap && tap.id === e.pointerId) {
@@ -345,6 +368,8 @@ export class GameView {
 
   // Room to leave at the top for the panel, in screen pixels (the panel can wrap onto two lines).
   topSpace = 76;
+  // Room to leave at the sides and bottom for the thumb bars on a phone, in screen pixels.
+  sideSpace = { left: 0, right: 0, bottom: 0 };
 
   private fit() {
     const { width, height } = this.app.screen;
@@ -370,11 +395,12 @@ export class GameView {
     const { width, height } = this.app.screen;
     const top = this.topSpace;
     const pad = width < 600 ? 6 : 16;
-    const w = width - pad * 2;
-    const h = height - top - pad;
+    const { left, right, bottom } = this.sideSpace;
+    const w = Math.max(50, width - pad * 2 - left - right);
+    const h = Math.max(50, height - top - pad - bottom);
     const mapW = this.game.w * TS;
     const mapH = this.game.h * TS;
-    return { x0: pad, y0: top, w, h, mapW, mapH, fit: Math.max(0.1, Math.min(w / mapW, h / mapH)) };
+    return { x0: pad + left, y0: top, w, h, mapW, mapH, fit: Math.max(0.1, Math.min(w / mapW, h / mapH)) };
   }
 
   private draw(dt: number) {

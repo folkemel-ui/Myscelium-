@@ -478,3 +478,95 @@ kbd { font: inherit; font-size: 11px; opacity: 0.7; }
 .menu button.link { background: none; border: none; padding: 2px 0; font-size: 12px; color: var(--muted); text-align: left; }
 .menu button.link:hover { color: var(--ink); }
 .codes { display: flex; flex-direction: column; gap: 8px; padding: 8px 10px; border-radius: 10px; border: 1px dashed var(--line); }
+
+/* --- Tool pictures (all screens) --- */
+.tool-name { display: inline-flex; align-items: center; gap: 5px; }
+.tool-icon { width: 18px; height: 18px; flex: none; overflow: visible; }
+.t-grow .thread { stroke: var(--glow-2); filter: drop-shadow(0 0 2px var(--glow-2)); }
+.t-grow .knot { fill: var(--glow); }
+.t-mushroom .cap { fill: var(--glow); filter: drop-shadow(0 0 2px var(--glow)); }
+.t-mushroom .stem, .t-tower .stem { fill: #f4e6d0; }
+.t-mushroom .spot { fill: #fff; opacity: 0.85; }
+.t-shelf .trunk { fill: #6b4a32; }
+.t-shelf .bracket { fill: #ffb84f; }
+.t-tower .sac { fill: #e8ffb0; filter: drop-shadow(0 0 3px #b6ff4f); }
+.t-tower .bolt { fill: #b6ff4f; }
+.t-toNutrients .spore, .t-toSpores .spore { fill: var(--glow-2); }
+.t-toNutrients .drop, .t-toSpores .drop { fill: #ffd166; }
+.tool-icon .arrow { stroke: var(--muted); }
+.t-burstAll .core { fill: #fff; filter: drop-shadow(0 0 3px var(--glow)); }
+.t-burstAll .puff { fill: var(--glow); }
+.t-burstAll .puff:nth-child(odd) { fill: var(--glow-2); }
+.tools button.burst-all { border-style: solid; }
+.tools button.burst-all.ready { border-color: var(--glow); }
+.tools button.burst-all.ready small { color: var(--ink); }
+
+/* --- Touch screens: everything to tap is at least 44 px (Apple's guideline) --- */
+.app.touch .icon { width: 44px; height: 44px; }
+.app.touch .icon svg { width: 20px; height: 20px; }
+.app.touch .tools button { min-height: 44px; }
+
+/* --- On a phone: tools in a column on the right, game buttons on the left, numbers on top --- */
+.thumb-bar { position: absolute; z-index: 2; pointer-events: none; }
+.thumb-bar > * { pointer-events: auto; }
+.thumb-bar.right { right: calc(6px + var(--safe-r)); top: calc(50px + var(--safe-t)); bottom: calc(6px + var(--safe-b)); display: flex; }
+.thumb-bar.left { left: calc(6px + var(--safe-l)); top: calc(50px + var(--safe-t)); }
+.thumb-tools { flex-direction: column-reverse; flex-wrap: wrap-reverse; align-content: flex-start; gap: 5px; }
+.thumb-icons { flex-direction: column; gap: 5px; }
+.thumb-bar .icon, .thumb-tools button {
+  backdrop-filter: blur(6px); background: rgba(24, 16, 30, 0.82); border-color: rgba(255, 255, 255, 0.16);
+}
+.thumb-tools button {
+  position: relative; width: 48px; height: 48px; min-height: 0; padding: 0; display: grid; place-items: center; align-content: center; gap: 1px;
+}
+.thumb-tools .tool-name kbd, .thumb-tools .tool-name .name { display: none; }
+.thumb-tools .tool-icon { width: 22px; height: 22px; }
+.thumb-tools button small { display: block; font-size: 10px; font-weight: 700; line-height: 1; color: var(--muted); }
+.thumb-tools button.on small { color: var(--ink); }
+.thumb-tools button.burst-all { order: -1; width: 60px; height: 60px; border-radius: 50% 44% 50% 46%; border-width: 2px; }
+.thumb-tools button.burst-all small { display: none; }
+.thumb-tools button.burst-all .tool-icon { width: 30px; height: 30px; }
+.thumb-tools button.burst-all.ready { box-shadow: 0 0 14px color-mix(in srgb, var(--glow) 60%, transparent); animation: burst-ready 1.2s ease-in-out infinite; }
+@keyframes burst-ready { 50% { box-shadow: 0 0 22px color-mix(in srgb, var(--glow) 85%, transparent); } }
+.thumb-tools .badge { position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px; border-radius: 9px; padding: 0 4px; box-sizing: border-box;
+  display: grid; place-items: center; font-size: 11px; color: #18130e; background: #ffe066; }
+/* Held upright: the tools are a row along the bottom instead. */
+@container app (orientation: portrait) {
+  .thumb-bar.right { top: auto; left: calc(6px + var(--safe-l)); }
+  .thumb-tools { flex-direction: row-reverse; flex-wrap: wrap-reverse; justify-content: flex-start; }
+}
+/* Bigger, bolder numbers on a phone: the panel has room now the tools are at the side. */
+.app.thumbs .panel { gap: 4px 14px; padding: 5px 14px; }
+.app.thumbs .stat strong { font-size: 18px; font-weight: 700; }
+.app.thumbs .stat .rate { display: block; font-size: 11px; font-weight: 600; }
+.app.thumbs .goal .label { font-size: 0; }
+.app.thumbs .goal .label b { font-size: 15px; }
+.app.thumbs .chip svg { width: 18px; height: 18px; }
+.app.thumbs .toast { bottom: calc(12px + var(--safe-b)); }
+
+/* --- What a finger held on the map shows --- */
+.info-bubble {
+  position: absolute; z-index: 3; transform: translate(-50%, -100%); max-width: 230px; padding: 8px 12px;
+  display: flex; flex-direction: column; gap: 2px; font-size: 13px; color: var(--muted);
+  background: rgba(24, 16, 30, 0.92); border: 1px solid color-mix(in srgb, var(--glow-2) 50%, transparent);
+  border-radius: 14px 10px 14px 10px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5); animation: bubble-in 0.15s ease-out;
+}
+.info-bubble.below { transform: translate(-50%, 0); }
+.info-bubble strong { color: var(--ink); font-size: 15px; }
+.info-bubble.danger { border-color: #ff6a5a; }
+.info-bubble .warning { color: #ff9a85; font-weight: 600; }
+@keyframes bubble-in { from { opacity: 0; } }
+@container app (max-width: 520px) {
+  .app.thumbs .stat .rate { display: none; }
+}
+@container app (orientation: portrait) {
+  .app.thumbs .turn-hint { bottom: calc(76px + var(--safe-b)); }
+  .app.thumbs .toast { bottom: calc(132px + var(--safe-b)); }
+}
+.app.thumbs .mother-alarm { top: calc(56px + var(--safe-t)); bottom: auto; }
+/* A small window with a mouse: the tools show their pictures only (the name is in the tooltip). */
+@container app (max-width: 900px) or (max-height: 520px) {
+  .tools .tool-name .name { display: none; }
+  .tools button { padding: 4px 8px; }
+  .tools .tool-icon { width: 20px; height: 20px; }
+}

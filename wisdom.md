@@ -189,4 +189,12 @@ Things learned while building Mycelium that are worth knowing before the next ch
   be pretended by setting `--safe-l`, `--safe-r`, `--safe-b`, `--safe-t` on `:root`.
 - Text next to an icon in a flex row: wrap the text in one `<span>`, or each word in `<b>` becomes
   its own flex item with the gap around it.
+- Phone layout ("thumbs") is decided in App.tsx: a touch screen and a game area of 900×520 or
+  smaller. The tools and round buttons are rendered outside the panel then (`.thumb-bar`), and
+  App measures the bars and tells GameView (`sideSpace`) so the forest keeps clear of them.
+- A long press is a timer started on a touch's pointerdown in GameView and cancelled by moving,
+  lifting or a second finger. It can be tested in Chromium with CDP `Input.dispatchTouchEvent`
+  (touchStart, wait, touchEnd); screen positions of tiles come from `view.world.toGlobal`.
+- `src/game/info.ts` (`describeTile`) is what the long-press bubble shows: plain words from the
+  game, tested in thumbs.test.ts.
 

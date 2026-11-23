@@ -129,6 +129,25 @@ export function burst(g: Game, x: number, y: number): string | null {
   return null;
 }
 
+// Ready mushrooms with a beetle within reach of their burst.
+export function burstable(g: Game): Mushroom[] {
+  return g.mushrooms.filter((m) => m.cooldown <= 0 && g.beetles.some((b) =>
+    b.hp > 0 && Math.hypot(b.x - (m.x + 0.5), b.y - (m.y + 0.5)) <= g.mods.burstRange));
+}
+
+// Burst every ready mushroom that has a beetle within reach (one button, for thumbs mid-fight).
+// Returns null when at least one burst, or a reason when none could.
+export function burstAll(g: Game): string | null {
+  if (g.status !== 'playing') return 'The level is over';
+  const ready = burstable(g);
+  if (ready.length === 0) {
+    return g.mushrooms.some((m) => m.cooldown <= 0) ? 'No beetles near a ready mushroom' : 'No mushroom is ready to burst';
+  }
+  // One at a time: a beetle beaten by an earlier burst doesn't use up another mushroom.
+  for (const m of ready) if (burstable(g).includes(m)) burst(g, m.x, m.y);
+  return null;
+}
+
 function sporeCloud(g: Game, cx: number, cy: number, range: number, damage: number, big: boolean) {
   g.puffs.push({ x: cx, y: cy, radius: range, age: 0, big });
   for (const b of g.beetles) {
@@ -303,6 +322,13 @@ export function underAttack(g: Game): Attacked[] {
     if (most > 0) out.push({ ...m, progress: Math.min(1, most) });
   }
   return out;
+}
+
+// How far along (0..1) the beetle furthest into eating this tile is; 0 when none is.
+export function isEaten(g: Game, tile: number): number {
+  let most = 0;
+  for (const b of g.beetles) if (b.target === tile && b.eatTimer > 0) most = Math.max(most, b.eatTimer / eatTimeFor(g, tile));
+  return Math.min(1, most);
 }
 
 // How long a tile takes to eat: mushrooms, and the mother most of all, hold out longer.
