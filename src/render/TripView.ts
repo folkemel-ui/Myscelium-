@@ -47,7 +47,6 @@ export class TripView {
   readonly air = new Container(); // everything floating over the forest
   readonly airMask = new Graphics();
   private band = new Sprite();
-  private rings = new Graphics();
   private waveGlow = new Sprite();
   private corners: Sprite[] = [];
   private twinkleLayer = new Container();
@@ -81,7 +80,7 @@ export class TripView {
     });
     this.waveGlow.texture = dotTexture();
     this.waveGlow.anchor.set(0.5);
-    this.air.addChild(this.band, ...this.corners, this.waveGlow, this.rings, this.twinkleLayer, this.floaterLayer);
+    this.air.addChild(this.band, ...this.corners, this.waveGlow, this.twinkleLayer, this.floaterLayer);
     this.air.mask = this.airMask;
   }
 
@@ -169,7 +168,6 @@ export class TripView {
     const cx = mother ? (mother.x + 0.5) * TS : this.w / 2;
     const cy = mother ? (mother.y + 0.5) * TS : this.h / 2;
     const far = Math.hypot(Math.max(cx, this.w - cx), Math.max(cy, this.h - cy));
-    const rings = this.rings.clear();
     const wave = stageWave(clock - this.waveAt);
     this.waveGlow.visible = wave !== null;
     if (wave) {
@@ -179,8 +177,7 @@ export class TripView {
       this.waveGlow.position.set(cx, cy);
       this.waveGlow.width = this.waveGlow.height = Math.max(1, r * 2.3);
       this.waveGlow.alpha = 0.32 * wave.bright;
-      rings.circle(cx, cy, r).stroke({ width: 22, color, alpha: 0.06 * wave.bright });
-      rings.circle(cx, cy, r).stroke({ width: 6, color, alpha: 0.1 * wave.bright });
+      // No outline: a sharp circle across the map looked like a mistake (Pack 18).
     }
 
     // Heartbeats of light along the network, from stage 2.

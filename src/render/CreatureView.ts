@@ -7,8 +7,8 @@
 // legs, jaws and antennae are redrawn each frame.
 import { Container, Graphics, Sprite, Texture } from 'pixi.js';
 import { DOT_SIZE, dotTexture } from './textures';
-import { BEETLE_HP } from '../game/constants';
-import { shelfConnected, underAttack } from '../game/sim';
+import { BEETLE_HP, SWARM_WARNING } from '../game/constants';
+import { incomingSwarm, shelfConnected, underAttack } from '../game/sim';
 import type { Game, Mushroom, Puff, Tower } from '../game/world';
 import { boltAt, shelfFacing, towerKick } from './buildings';
 import {
@@ -150,11 +150,15 @@ export class CreatureView {
         const pulse = 0.5 + 0.5 * Math.sin(clock * 2.2);
         under.circle(cx, cy, TS * (0.9 + 0.15 * pulse)).fill({ color: PALETTE.mother, alpha: 0.1 + 0.06 * pulse });
       }
+      const r = m.mother ? 17 : 12;
       if (m.cooldown > 0) {
-        const r = m.mother ? 17 : 12;
         const done = 1 - m.cooldown / g.mods.burstCooldown;
         under.moveTo(cx, cy - r).arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + done * Math.PI * 2)
           .stroke({ width: 2, color: 0xffffff, alpha: 0.55 });
+      } else {
+        // Ready to burst: the ring is whole and breathes softly.
+        const breathe = 0.5 + 0.5 * Math.sin(clock * 3 + m.id);
+        under.circle(cx, cy, r).stroke({ width: 1.5, color: 0xffffff, alpha: 0.18 + 0.17 * breathe });
       }
     }
   }
@@ -240,9 +244,23 @@ export class CreatureView {
       const y = Math.min(H - 10, Math.max(10, b.y * TS));
       const [nx, ny] = b.x < 0.5 ? [1, 0] : b.x > g.w - 0.5 ? [-1, 0] : b.y < 0.5 ? [0, 1] : [0, -1];
       const fade = 1 - age / ARRIVAL_WARNING;
-      const s = 12;
-      d.moveTo(x + nx * s, y + ny * s).lineTo(x - ny * s * 0.8, y + nx * s * 0.8).lineTo(x + ny * s * 0.8, y - nx * s * 0.8).closePath()
-        .fill({ color: 0xff4a3d, alpha: 0.85 * fade * blink });
+      arrowIn(d, x, y, nx, ny, 12, 0xff4a3d, 0.85 * fade * blink);
+    }
+    // A swarm about to come in: a glow on the edge where it will, growing brighter as it nears,
+    // with arrows pointing in.
+    const inc = incomingSwarm(g);
+    if (inc) {
+      const x = Math.min(W - 12, Math.max(12, inc.x * TS));
+      const y = Math.min(H - 12, Math.max(12, inc.y * TS));
+      const [nx, ny] = [[1, 0], [-1, 0], [0, 1], [0, -1]][inc.side];
+      const near = 1 - inc.in / SWARM_WARNING;
+      const beat = 0.6 + 0.4 * Math.sin(clock * (6 + 8 * near));
+      d.circle(x, y, 26 + 10 * near).fill({ color: 0xff6a2a, alpha: (0.12 + 0.18 * near) * beat });
+      d.circle(x, y, 14).fill({ color: 0xff8a3d, alpha: (0.18 + 0.2 * near) * beat });
+      for (let k = 0; k < 3; k++) {
+        const step = ((clock * 1.6 + k / 3) % 1) * 18;
+        arrowIn(d, x + nx * step, y + ny * step, nx, ny, 8, 0xffc070, 0.9 * beat * (1 - step / 22));
+      }
     }
     for (const { progress, ...m } of underAttack(g)) {
       const cx = (m.x + 0.5) * TS;
@@ -559,7 +577,13 @@ function beetleParts(kind: 'beetle' | 'bark' = 'beetle'): BeetleParts {
   const belly = new Graphics();
   const cracks = new Graphics();
   const flash = new Graphics();
+  // Seen on any ground (Pack 18): a soft warm glow and a shadow under it, and a light rim.
+  const glow = new Graphics();
+  glow.circle(-0.5, 0, 12).fill({ color: 0xffb060, alpha: 0.12 });
+  glow.circle(-0.5, 0, 8.5).fill({ color: 0xffc070, alpha: 0.16 });
+  glow.ellipse(0.5, 1.8, 8, 5.6).fill({ color: 0x000000, alpha: 0.35 });
 
+  shell.ellipse(-1, 0, 7.4, 5.7).stroke({ width: 1.1, color: 0xfff0d8, alpha: 0.55 });
   shell.ellipse(-1, 0, 6.6, 4.9).fill(bark ? 0x6b3a24 : 0x2a3550).stroke({ width: 0.8, color: bark ? 0x3a1c10 : 0x161c2e });
   shell.ellipse(-2, -1.9, 3.4, 1.3).fill({ color: 0xffffff, alpha: 0.22 });
   shell.ellipse(-2.4, 2.1, 2.2, 0.8).fill({ color: 0x7f9fff, alpha: 0.18 });
@@ -582,7 +606,7 @@ function beetleParts(kind: 'beetle' | 'bark' = 'beetle'): BeetleParts {
   flash.circle(8.2, 0, 2.5).fill(0xffffff);
   flash.alpha = 0;
 
-  root.addChild(limbs, shell, belly, cracks, flash);
+  root.addChild(glow, limbs, shell, belly, cracks, flash);
   return { root, limbs, shell, belly, cracks, flash, crackLevel: 1 };
 }
 
@@ -634,4 +658,10 @@ function drawLimbs(s: Graphics, o: LimbLook) {
     s.moveTo(9.6, side * 0.9).lineTo(11.4, side * (0.7 + o.jaw * 1.8)).lineTo(12.2, side * (0.25 + o.jaw * 0.8));
   }
   s.stroke({ width: 1.2, color: 0x101015, cap: 'round' });
+}
+
+// An arrow at (x, y) pointing along (nx, ny), size s.
+function arrowIn(d: Graphics, x: number, y: number, nx: number, ny: number, s: number, color: number, alpha: number) {
+  d.moveTo(x + nx * s, y + ny * s).lineTo(x - ny * s * 0.8, y + nx * s * 0.8).lineTo(x + ny * s * 0.8, y - nx * s * 0.8).closePath()
+    .fill({ color, alpha });
 }

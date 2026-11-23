@@ -266,19 +266,40 @@ export function newBeetle(g: Game, x: number, y: number): Beetle {
   };
 }
 
-function spawnBeetles(g: Game) {
+// Where a swarm comes in: a side (left, right, top or bottom, by the level's weights) and how far
+// along it. Chosen SWARM_WARNING seconds before it arrives, so the player can be warned.
+function chooseSwarm(g: Game) {
   const r = g.rules;
-  if (g.time < r.firstBeetleAt || g.time < g.nextBeetle || g.beetles.length >= C.MAX_BEETLES) return;
-  const share = Math.min(1, coverage(g) / C.WIN_COVERAGE);
-  const interval = r.intervalStart - (r.intervalStart - r.intervalMin) * share;
-  g.nextBeetle = g.time + interval;
-  // Which side: left, right, top or bottom, by the level's weights.
   let pick = g.rng();
   let side = 0;
   while (side < 3 && pick >= r.sides[side]) pick -= r.sides[side++];
-  const along = g.rng();
-  const x = side === 0 ? -0.5 : side === 1 ? g.w + 0.5 : along * g.w;
-  const y = side === 2 ? -0.5 : side === 3 ? g.h + 0.5 : along * g.h;
+  return { side, along: g.rng() };
+}
+
+const swarmPoint = (g: Game, s: { side: number; along: number }) => ({
+  x: s.side === 0 ? -0.5 : s.side === 1 ? g.w + 0.5 : s.along * g.w,
+  y: s.side === 2 ? -0.5 : s.side === 3 ? g.h + 0.5 : s.along * g.h,
+});
+
+// The swarm about to come in: where (in tiles, just off the map's edge) and in how many seconds.
+export function incomingSwarm(g: Game): { x: number; y: number; side: number; in: number } | null {
+  if (!g.nextSwarm || g.status !== 'playing') return null;
+  return { ...swarmPoint(g, g.nextSwarm), side: g.nextSwarm.side, in: Math.max(0, Math.max(g.rules.firstBeetleAt, g.nextBeetle) - g.time) };
+}
+
+function spawnBeetles(g: Game) {
+  const r = g.rules;
+  const due = Math.max(r.firstBeetleAt, g.nextBeetle);
+  if (g.beetles.length >= C.MAX_BEETLES) return;
+  if (!g.nextSwarm && g.time >= due - C.SWARM_WARNING) g.nextSwarm = chooseSwarm(g);
+  if (g.time < due) return;
+  const share = Math.min(1, coverage(g) / C.WIN_COVERAGE);
+  const interval = r.intervalStart - (r.intervalStart - r.intervalMin) * share;
+  g.nextBeetle = g.time + interval;
+  const swarm = g.nextSwarm ?? chooseSwarm(g);
+  g.nextSwarm = null;
+  const { x, y } = swarmPoint(g, swarm);
+  const side = swarm.side;
   const n = Math.min(swarmSize(g), C.MAX_BEETLES - g.beetles.length);
   for (let k = 0; k < n; k++) {
     // A swarm arrives bunched up along the edge.

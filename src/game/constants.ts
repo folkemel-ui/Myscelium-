@@ -31,6 +31,7 @@ export const BEETLE_EAT_TIME = 1.5; // seconds to eat one tile of mycelium
 export const BEETLE_NUTRIENTS = 3; // dropped when a beetle is defeated
 export const BEETLE_APPETITE = 4; // tiles a beetle eats before it is full and leaves
 export const MAX_BEETLES = 24; // on the map at once
+export const SWARM_WARNING = 3; // seconds of warning before a swarm comes in
 
 // Beetles get to be a real threat: they come in small swarms, some go for mushrooms or the mother,
 // and they grow tougher as the round goes on.
@@ -74,10 +75,10 @@ export const DIGEST_NUTRIENTS_IN = 5;
 export const DIGEST_SPORES_OUT = 8;
 // Shelf fungus: grows on a tree next to the network and makes nutrients while still touching it.
 export const SHELF_COST = 20; // nutrients
-export const SHELF_NUTRIENTS = 0.3; // a second
+export const SHELF_NUTRIENTS = 0.45; // a second
 // Spore tower: built on mycelium, shoots the nearest beetle in range.
-export const TOWER_NUTRIENTS = 30;
-export const TOWER_SPORES = 40;
+export const TOWER_NUTRIENTS = 25;
+export const TOWER_SPORES = 30;
 export const TOWER_RANGE = 6;
 export const TOWER_DAMAGE = 1;
 export const TOWER_INTERVAL = 1; // seconds between shots

@@ -339,6 +339,10 @@ export function App() {
     const fit = () => {
       topSpace.current = el.getBoundingClientRect().bottom + 8;
       if (view.current) view.current.topSpace = topSpace.current;
+      // Where the panel covers the forest, relative to the canvas.
+      const r = el.getBoundingClientRect();
+      const h = host.current?.getBoundingClientRect();
+      if (view.current && h) view.current.panelBox = { left: r.left - h.left, right: r.right - h.left, bottom: r.bottom - h.top };
     };
     const watcher = new ResizeObserver(fit);
     watcher.observe(el);
@@ -347,6 +351,10 @@ export function App() {
   }, []);
 
   useEffect(() => setInfo(null), [screen, snap.status]);
+  // The burst reach a held finger shows goes with the bubble.
+  useEffect(() => {
+    if (!info && view.current) view.current.heldTile = -1;
+  }, [info]);
 
   // Switching to another tab pauses the round.
   useEffect(() => {

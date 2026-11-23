@@ -197,4 +197,10 @@ Things learned while building Mycelium that are worth knowing before the next ch
   (touchStart, wait, touchEnd); screen positions of tiles come from `view.world.toGlobal`.
 - `src/game/info.ts` (`describeTile`) is what the long-press bubble shows: plain words from the
   game, tested in thumbs.test.ts.
+- Where a swarm comes in is chosen `SWARM_WARNING` seconds early (`g.nextSwarm`), so the view can
+  warn; `incomingSwarm(g)` says where and when. It is saved with the round.
+- The playthrough test has a builder player (shelves and towers). Rerun it after changing what
+  buildings cost or do; compare the builder with the casual player.
+- "In view" on the screen means the canvas less the thumb bars and the panel (`panelBox`, set by
+  App): the map is drawn under the panel and bars too, so the camera's viewport is not what is seen.
 

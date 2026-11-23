@@ -5,7 +5,7 @@ import { Application, ColorMatrixFilter, Container, Graphics, Sprite, Texture, t
 import { WIN_COVERAGE } from '../game/constants';
 import {
   buildTower, burst, canGrowAt, coverage, growMycelium, mushroomAt, nearestReadyMushroom, placeShelf, plantMushroom, shelfAt,
-  shelfConnected, towerAt,
+  incomingSwarm, shelfConnected, towerAt,
 } from '../game/sim';
 import { idx, inside, TILE, type Game } from '../game/world';
 import { CreatureView } from './CreatureView';
@@ -93,6 +93,9 @@ export class GameView {
   readonly trip = new TripView();
   readonly creatures = new CreatureView();
   private hover = new Graphics();
+  private edgeMarks = new Graphics(); // on the screen: arrows at the edge towards beetles out of view
+  heldTile = -1; // a tile a finger is holding (a long press), for the burst reach; -1 when none
+  private mouse = false; // the pointer over the map is a mouse (it hovers), not a finger
   private colour = new ColorMatrixFilter();
   private canopyColour = new ColorMatrixFilter(); // turns the crowns towards teal and violet
   private threadColour = new ColorMatrixFilter(); // the slow colour drift, on the threads only
@@ -135,7 +138,7 @@ export class GameView {
     view.canopy.filters = [view.canopyColour];
     view.network.threadLayer.filters = [view.threadColour];
     view.buildForest();
-    view.app.stage.addChild(view.world, view.creatures.sparkles);
+    view.app.stage.addChild(view.world, view.edgeMarks, view.creatures.sparkles);
     view.app.stage.eventMode = 'static';
     view.app.stage.hitArea = view.app.screen;
     view.app.stage.on('pointerdown', (e) => view.pointerDown(e));
@@ -245,6 +248,7 @@ export class GameView {
   private pointerDown(e: FederatedPointerEvent) {
     this.pointers.set(e.pointerId, { x: e.global.x, y: e.global.y });
     this.events.onInfo?.(null); // any touch closes what a long press showed
+    this.heldTile = -1;
     this.cancelPress();
     // A second finger: pinching and moving the view, not growing; what the first finger was about
     // to do is forgotten.
@@ -267,6 +271,7 @@ export class GameView {
         this.pressTimer = null;
         if (this.pendingTap !== tap || tap.tile < 0) return;
         this.pendingTap = null;
+        this.heldTile = tap.tile;
         const g = this.game;
         this.events.onInfo?.({ x: tap.tile % g.w, y: Math.floor(tap.tile / g.w), sx: tap.x, sy: tap.y });
       }, LONG_PRESS);
@@ -312,6 +317,7 @@ export class GameView {
     }
     const i = this.tileAt(e);
     this.pointerTile = i;
+    this.mouse = e.pointerType === 'mouse';
     const p = this.world.toLocal(e.global);
     this.pointerAt = { x: p.x / TS, y: p.y / TS };
     if (this.frozen) return;
@@ -370,6 +376,8 @@ export class GameView {
   topSpace = 76;
   // Room to leave at the sides and bottom for the thumb bars on a phone, in screen pixels.
   sideSpace = { left: 0, right: 0, bottom: 0 };
+  // Where the panel covers the canvas (screen pixels), so beetles under it count as out of view.
+  panelBox: { left: number; right: number; bottom: number } | null = null;
 
   private fit() {
     const { width, height } = this.app.screen;
@@ -438,6 +446,7 @@ export class GameView {
       onSparkle: this.events.onSparkle,
     });
     this.drawHover();
+    this.drawEdgeMarks();
   }
 
   // Logs shrink, darken, grow moss and drop crumbs as they rot; a rotted log leaves a dark patch
@@ -500,7 +509,9 @@ export class GameView {
     const h = this.hover.clear();
     const g = this.game;
     const i = this.pointerTile;
-    if (i < 0 || g.status !== 'playing') return;
+    if (g.status !== 'playing') return;
+    this.drawReach(h, this.heldTile >= 0 ? this.heldTile : this.mouse ? i : -1);
+    if (i < 0) return;
     const x = i % g.w;
     const y = Math.floor(i / g.w);
     const onNetwork = g.mycelium[i] === 1 && g.tiles[i] !== TILE.LOG && !towerAt(g, x, y);
@@ -512,6 +523,65 @@ export class GameView {
           ? g.tiles[i] === TILE.TREE && !shelfAt(g, x, y) && shelfConnected(g, { x, y })
           : onNetwork;
     h.rect(x * TS + 1, y * TS + 1, TS - 2, TS - 2).stroke({ width: 2, color: ok ? 0xffffff : 0xff5050, alpha: 0.8 });
+  }
+
+  // How far a mushroom's burst reaches: shown round the mushroom under the mouse, or one a finger
+  // is holding. Beetles inside it get a small mark.
+  private drawReach(h: Graphics, i: number) {
+    const g = this.game;
+    const m = i >= 0 ? mushroomAt(g, i % g.w, Math.floor(i / g.w)) : undefined;
+    if (!m) return;
+    const cx = (m.x + 0.5) * TS;
+    const cy = (m.y + 0.5) * TS;
+    const r = g.mods.burstRange * TS;
+    const ready = m.cooldown <= 0;
+    h.circle(cx, cy, r).fill({ color: 0xffffff, alpha: ready ? 0.06 : 0.03 });
+    h.circle(cx, cy, r).stroke({ width: 1.5, color: 0xffffff, alpha: ready ? 0.6 : 0.3 });
+    for (const b of g.beetles) {
+      if (b.hp <= 0 || Math.hypot(b.x * TS - cx, b.y * TS - cy) > r) continue;
+      h.circle(b.x * TS, b.y * TS, 11).stroke({ width: 1.5, color: 0xffd36b, alpha: ready ? 0.9 : 0.45 });
+    }
+  }
+
+  // Beetles outside the view (zoomed in, on a phone) and a swarm about to come in out of view:
+  // arrows at the edge of the view pointing towards them, bigger where several are together.
+  private drawEdgeMarks() {
+    const e = this.edgeMarks.clear();
+    const g = this.game;
+    if (g.status !== 'playing' || this.inspect) return;
+    // What can be seen: the screen, less the thumb bars at the sides and bottom, and the panel.
+    const { width, height } = this.app.screen;
+    const { left, right, bottom } = this.sideSpace;
+    const pb = this.panelBox;
+    const m = 14;
+    const [x0, y0, x1, y1] = [left + m, m, width - right - m, height - bottom - m];
+    const underPanel = (x: number, y: number) => pb !== null && x > pb.left && x < pb.right && y < pb.bottom;
+    const marks = new Map<string, { x: number; y: number; a: number; n: number; swarm: boolean }>();
+    const add = (wx: number, wy: number, swarm: boolean) => {
+      const p = this.world.toGlobal({ x: wx * TS, y: wy * TS });
+      const onScreen = p.x >= x0 - m && p.x <= x1 + m && p.y >= y0 - m && p.y <= y1 + m;
+      if (onScreen && !underPanel(p.x, p.y)) return; // in view
+      const x = Math.min(x1, Math.max(x0, p.x));
+      let y = Math.min(y1, Math.max(y0, p.y));
+      if (underPanel(x, y)) y = pb!.bottom + m; // just below the panel, pointing up at it
+      const key = `${Math.round(x / 28)},${Math.round(y / 28)},${swarm}`;
+      const was = marks.get(key);
+      if (was) was.n++;
+      else marks.set(key, { x, y, a: Math.atan2(p.y - y, p.x - x), n: 1, swarm });
+    };
+    for (const b of g.beetles) if (b.hp > 0) add(b.x, b.y, false);
+    const inc = incomingSwarm(g);
+    if (inc) add(inc.x, inc.y, true);
+    const blink = 0.65 + 0.35 * Math.sin(this.clock * 8);
+    for (const k of marks.values()) {
+      const s = (k.swarm ? 13 : 8) + 2 * Math.min(4, k.n - 1);
+      const [nx, ny] = [Math.cos(k.a), Math.sin(k.a)];
+      const color = k.swarm ? 0xffa03d : 0xff4a3d;
+      e.circle(k.x, k.y, s * 1.3).fill({ color: 0x000000, alpha: 0.35 });
+      e.moveTo(k.x + nx * s, k.y + ny * s).lineTo(k.x - nx * s * 0.6 - ny * s * 0.8, k.y - ny * s * 0.6 + nx * s * 0.8)
+        .lineTo(k.x - nx * s * 0.6 + ny * s * 0.8, k.y - ny * s * 0.6 - nx * s * 0.8).closePath()
+        .fill({ color, alpha: k.swarm ? blink : 0.9 });
+    }
   }
 }
 

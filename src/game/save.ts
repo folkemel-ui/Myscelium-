@@ -26,6 +26,7 @@ export interface SavedRound {
   nutrients: number;
   time: number;
   nextBeetle: number;
+  nextSwarm?: Game['nextSwarm'];
   creep: number;
   kills: number;
   nextId: number;
@@ -56,6 +57,7 @@ export function saveRound(g: Game): SavedRound {
     nutrients: g.nutrients,
     time: g.time,
     nextBeetle: g.nextBeetle,
+    nextSwarm: g.nextSwarm ? { ...g.nextSwarm } : null,
     creep: g.creep,
     kills: g.kills,
     nextId: g.nextId,
@@ -96,6 +98,7 @@ export function loadRound(data: unknown): Game | null {
     .map((v) => ({ ...v, timer: isNum(v.timer) ? v.timer : 0 }));
   Object.assign(g, {
     spores: s.spores, nutrients: s.nutrients, time: s.time, nextBeetle: s.nextBeetle, creep: s.creep,
+    nextSwarm: s.nextSwarm && isNum(s.nextSwarm.side) && isNum(s.nextSwarm.along) ? { ...s.nextSwarm } : null,
     kills: s.kills, nextId: s.nextId, nextSample: s.nextSample,
     history: s.history.filter((h) => isNum(h.t) && isNum(h.held)).map((h) => ({ ...h })),
     stats: { ...g.stats, ...s.stats },

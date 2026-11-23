@@ -160,6 +160,7 @@ export interface Game {
   nutrients: number;
   time: number;
   nextBeetle: number;
+  nextSwarm: { side: number; along: number } | null; // where the next swarm comes in, chosen a few seconds early
   creep: number; // build-up towards the next tile of creep
   status: Status;
   kills: number;
@@ -248,6 +249,7 @@ function finishLevel(p: {
     nutrients: 0,
     time: 0,
     nextBeetle: 0,
+    nextSwarm: null,
     creep: 0,
     status: 'playing',
     kills: 0,
