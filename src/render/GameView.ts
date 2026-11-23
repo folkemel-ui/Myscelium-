@@ -9,12 +9,27 @@ import { CreatureView } from './CreatureView';
 import { paintFloor, paintLightSpot } from './floor';
 import { NetworkView } from './NetworkView';
 import { TripView } from './TripView';
+import { homeCamera, MAX_ZOOM, panBy, pinch, place, zoomAt, type Camera, type Viewport } from './camera';
 import { blackLight } from './trip';
 import {
   CANOPY_GREENS, crownLayout, hash, PINE_GREENS, lightAt, lightSpots, logLook, sway, TS, type Crown, type LightSpot,
 } from './forestLayout';
 
 export type Tool = 'grow' | 'mushroom';
+
+// How far (screen pixels) a finger may move and still count as a tap rather than a drag.
+const TAP_SLOP = 8;
+
+// The smallest a tile should be when a round starts (screen pixels). Where the whole map would be
+// smaller than that (a phone), the round starts zoomed in on the mother instead.
+const START_TILE_PX = 14;
+
+function startCamera(v: Viewport, g: Game): Camera {
+  const zoom = Math.min(MAX_ZOOM, Math.max(1, START_TILE_PX / (v.fit * TS)));
+  if (zoom === 1) return homeCamera(v);
+  const m = g.mushrooms.find((mm) => mm.mother) ?? g.mushrooms[0];
+  return { zoom, cx: m ? (m.x + 0.5) * TS : v.mapW / 2, cy: m ? (m.y + 0.5) * TS : v.mapH / 2 };
+}
 
 // Patches of sunlight are added on top of what's below, this strong at their brightest.
 const LIGHT_STRENGTH = 0.12;
@@ -81,6 +96,14 @@ export class GameView {
   frozen = false;
   private dragging = false;
   private lastDragTile = -1;
+  // The camera, and the pointers on the map: fingers for pinching, a right-drag for moving.
+  private cam: Camera = { zoom: 1, cx: 0, cy: 0 };
+  private camReady = false; // a new forest starts zoomed out, showing all of it
+  private pointers = new Map<number, { x: number; y: number }>();
+  private pinching = false;
+  private panning = false;
+  // A finger that went down but hasn't moved yet: it is a tap if it lifts, a drag if it moves.
+  private pendingTap: { id: number; x: number; y: number; tile: number } | null = null;
   private clock = 0;
   private destroyed = false;
   game: Game;
@@ -110,8 +133,15 @@ export class GameView {
     view.app.stage.hitArea = view.app.screen;
     view.app.stage.on('pointerdown', (e) => view.pointerDown(e));
     view.app.stage.on('pointermove', (e) => view.pointerMove(e));
-    view.app.stage.on('pointerup', () => (view.dragging = false));
-    view.app.stage.on('pointerupoutside', () => (view.dragging = false));
+    for (const ev of ['pointerup', 'pointerupoutside', 'pointercancel'] as const) view.app.stage.on(ev, (e) => view.pointerUp(e));
+    // The mouse wheel zooms around the pointer; the right button is for moving the view.
+    const canvas = view.app.canvas;
+    canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const r = canvas.getBoundingClientRect();
+      view.cam = zoomAt(view.cam, Math.exp(-e.deltaY * 0.0015), e.clientX - r.left, e.clientY - r.top, view.viewport());
+    }, { passive: false });
+    canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     view.app.ticker.add((t) => {
       const dt = Math.min(0.1, t.deltaMS / 1000);
       if (!view.frozen) onTick(dt);
@@ -122,6 +152,7 @@ export class GameView {
 
   setGame(game: Game) {
     this.game = game;
+    this.camReady = false;
     this.network.reset();
     this.creatures.reset();
     this.buildForest();
@@ -183,9 +214,45 @@ export class GameView {
     this.report(burst(this.game, m.x, m.y));
   }
 
+  // Zoom in or out by a factor, around the middle of the view (the + and - keys), or back out to
+  // the whole map (0).
+  zoomBy(factor: number) {
+    const v = this.viewport();
+    this.cam = zoomAt(this.cam, factor, v.x0 + v.w / 2, v.y0 + v.h / 2, v);
+  }
+
+  resetCamera() {
+    this.cam = homeCamera(this.viewport());
+  }
+
+  get zoom() {
+    return this.cam.zoom;
+  }
+
   private pointerDown(e: FederatedPointerEvent) {
+    this.pointers.set(e.pointerId, { x: e.global.x, y: e.global.y });
+    // A second finger: pinching and moving the view, not growing; what the first finger was about
+    // to do is forgotten.
+    if (this.pointers.size >= 2) {
+      this.pinching = true;
+      this.dragging = false;
+      this.pendingTap = null;
+      return;
+    }
+    if (e.pointerType === 'mouse' && e.button !== 0) {
+      this.panning = true;
+      return;
+    }
     if (this.frozen) return;
-    const i = this.tileAt(e);
+    if (e.pointerType === 'touch') {
+      this.pendingTap = { id: e.pointerId, x: e.global.x, y: e.global.y, tile: this.tileAt(e) };
+      return;
+    }
+    this.act(this.tileAt(e));
+  }
+
+  // What a click or tap on a tile does: burst a mushroom, plant one, or start growing.
+  private act(i: number) {
     if (i < 0) return;
     const g = this.game;
     const x = i % g.w;
@@ -202,11 +269,32 @@ export class GameView {
   }
 
   private pointerMove(e: FederatedPointerEvent) {
+    const prev = this.pointers.get(e.pointerId);
+    const now = { x: e.global.x, y: e.global.y };
+    if (prev) {
+      if (this.pinching && this.pointers.size >= 2) {
+        const [other] = [...this.pointers.entries()].filter(([id]) => id !== e.pointerId).map(([, p]) => p);
+        this.cam = pinch(this.cam, prev, other, now, other, this.viewport());
+        this.pointers.set(e.pointerId, now);
+        return;
+      }
+      this.pointers.set(e.pointerId, now);
+      if (this.panning) {
+        this.cam = panBy(this.cam, now.x - prev.x, now.y - prev.y, this.viewport());
+        return;
+      }
+    }
     const i = this.tileAt(e);
     this.pointerTile = i;
     const p = this.world.toLocal(e.global);
     this.pointerAt = { x: p.x / TS, y: p.y / TS };
     if (this.frozen) return;
+    // A finger that has moved far enough is a drag: it starts where the finger went down.
+    const tap = this.pendingTap;
+    if (tap && tap.id === e.pointerId && Math.hypot(now.x - tap.x, now.y - tap.y) > TAP_SLOP) {
+      this.pendingTap = null;
+      this.act(tap.tile);
+    }
     if (!this.dragging || i < 0 || i === this.lastDragTile) return;
     const g = this.game;
     // Grow every tile on the line from the last one, so a fast drag leaves no gaps. Tiles that
@@ -223,6 +311,21 @@ export class GameView {
       if (!canGrowAt(g, x, y)) continue;
       const problem = growMycelium(g, x, y);
       if (problem) return this.report(problem);
+    }
+  }
+
+  private pointerUp(e: FederatedPointerEvent) {
+    this.pointers.delete(e.pointerId);
+    // A finger lifted without moving: a tap.
+    const tap = this.pendingTap;
+    if (tap && tap.id === e.pointerId) {
+      this.pendingTap = null;
+      if (!this.frozen) this.act(tap.tile);
+    }
+    if (this.pointers.size < 2) this.pinching = false;
+    if (this.pointers.size === 0) {
+      this.dragging = false;
+      this.panning = false;
     }
   }
 
@@ -246,12 +349,27 @@ export class GameView {
       this.world.position.set(width / 2 - (x + 0.5) * TS * scale, height / 2 - (y + 0.5) * TS * scale);
       return;
     }
+    const v = this.viewport();
+    if (!this.camReady) {
+      this.cam = startCamera(v, this.game);
+      this.camReady = true;
+    }
+    const { at, cam } = place(this.cam, v);
+    this.cam = cam;
+    this.world.scale.set(at.scale);
+    this.world.position.set(at.x, at.y);
+  }
+
+  // Where the map may be shown: below the panel, inside a small margin.
+  viewport(): Viewport {
+    const { width, height } = this.app.screen;
     const top = this.topSpace;
-    const pad = 16;
-    const scale = Math.min((width - pad * 2) / (this.game.w * TS), (height - top - pad) / (this.game.h * TS));
-    this.world.scale.set(Math.max(0.2, scale));
-    this.world.x = (width - this.game.w * TS * this.world.scale.x) / 2;
-    this.world.y = top + (height - top - pad - this.game.h * TS * this.world.scale.y) / 2;
+    const pad = width < 600 ? 6 : 16;
+    const w = width - pad * 2;
+    const h = height - top - pad;
+    const mapW = this.game.w * TS;
+    const mapH = this.game.h * TS;
+    return { x0: pad, y0: top, w, h, mapW, mapH, fit: Math.max(0.1, Math.min(w / mapW, h / mapH)) };
   }
 
   private draw(dt: number) {

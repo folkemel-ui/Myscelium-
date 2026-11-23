@@ -53,11 +53,26 @@ const TOOLS: { tool: Tool; key: string; name: string; cost: (s: Snapshot) => str
   { tool: 'mushroom', key: '2', name: 'Grow mushroom', cost: () => `${MUSHROOM_COST} nutrients` },
 ];
 
+// How to play on a touch screen, for the help panel there.
+const TOUCH_HELP: [string, string][] = [
+  ['Drag from your network', 'Grow mycelium (Grow tool)'],
+  ['Tap your mycelium', 'Grow a mushroom (Mushroom tool)'],
+  ['Tap a mushroom', 'Burst it at beetles nearby'],
+  ['Pinch', 'Zoom in and out'],
+  ['Drag with two fingers', 'Move the view'],
+  ['Buttons at the top', 'Pause, save, main menu, help'],
+];
+
+// Is this a touch screen (a phone or tablet) rather than a mouse?
+const isTouch = () => typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches;
+
 // Every way to play, for the help panel.
 const HELP: [string, string][] = [
   ['Drag from your network', 'Grow mycelium (Grow tool)'],
   ['Click your mycelium', 'Grow a mushroom (Mushroom tool)'],
   ['Click a mushroom', 'Burst it at beetles nearby'],
+  ['Mouse wheel / right-drag', 'Zoom in and out / move the view'],
+  ['+ / - / 0', 'Zoom in / out / show the whole forest'],
   ['1 / 2', 'Grow mycelium / Grow mushroom'],
   ['B', 'Burst the ready mushroom nearest the mouse'],
   ['Space or P', 'Pause and resume'],
@@ -98,6 +113,10 @@ export function App() {
   const [paused, setPaused] = useState(false);
   const [help, setHelp] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
+  const [touch] = useState(isTouch);
+  // A phone held upright gets a hint that the forest is bigger sideways (once a visit).
+  const [upright, setUpright] = useState(false);
+  const [uprightSeen, setUprightSeen] = useState(false);
   const restartArmed = useRef(0); // when R was pressed once during a round
   const [screen, setScreen] = useState<'menu' | 'game'>('menu');
   const [profile, setProfile] = useState<Profile>(() => readProfile(store));
@@ -217,6 +236,26 @@ export function App() {
     };
     document.addEventListener('visibilitychange', onHide);
     return () => document.removeEventListener('visibilitychange', onHide);
+  }, []);
+
+  // Watch whether the phone is held upright.
+  useEffect(() => {
+    const check = () => setUpright(window.innerHeight > window.innerWidth * 1.1);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
+
+  // Safari zooms the whole page on a pinch, even where the game takes the touches: stop that, so a
+  // pinch only zooms the forest.
+  useEffect(() => {
+    const stop = (e: Event) => e.preventDefault();
+    document.addEventListener('gesturestart', stop);
+    document.addEventListener('gesturechange', stop);
+    return () => {
+      document.removeEventListener('gesturestart', stop);
+      document.removeEventListener('gesturechange', stop);
+    };
   }, []);
 
   useEffect(() => {
@@ -348,6 +387,12 @@ export function App() {
         else if (paused) setPaused(false);
       } else if (key === 'h' || key === '?') {
         if (!e.repeat) setHelp((h) => !h);
+      } else if (key === '+' || key === '=') {
+        view.current?.zoomBy(1.25);
+      } else if (key === '-' || key === '_') {
+        view.current?.zoomBy(0.8);
+      } else if (key === '0') {
+        view.current?.resetCamera();
       } else if (key === 'b') {
         view.current?.burstNearest();
       } else if (key === 'f') {
@@ -415,13 +460,24 @@ export function App() {
             <MenuIcon />
           </button>
           <button className="icon" onClick={() => setHelp((h) => !h)} title="Help (H)" aria-label="Help">?</button>
-          <button className="icon" onClick={toggleFullscreen} title={fullscreen ? 'Leave fullscreen (F)' : 'Fullscreen (F)'}
-            aria-label={fullscreen ? 'Leave fullscreen' : 'Fullscreen'}>
-            <FullscreenIcon out={fullscreen} />
-          </button>
+          {document.fullscreenEnabled && (
+            <button className="icon" onClick={toggleFullscreen} title={fullscreen ? 'Leave fullscreen (F)' : 'Fullscreen (F)'}
+              aria-label={fullscreen ? 'Leave fullscreen' : 'Fullscreen'}>
+              <FullscreenIcon out={fullscreen} />
+            </button>
+          )}
         </div>
       </header>
-      {screen === 'game' && <p className="hint">Drag to grow mycelium · click a mushroom to burst it · H for help</p>}
+      {screen === 'game' && (
+        <p className="hint">
+          {touch
+            ? 'Drag to grow · tap a mushroom to burst it · pinch to zoom'
+            : 'Drag to grow mycelium · click a mushroom to burst it · wheel to zoom · H for help'}
+        </p>
+      )}
+      {touch && upright && !uprightSeen && screen === 'game' && (
+        <button className="turn-hint" onClick={() => setUprightSeen(true)}>Turn your phone sideways for a bigger forest ✕</button>
+      )}
       {message && <div className="toast" key={message.id}>{message.text}</div>}
       {snap.motherAttacked && screen === 'game' && snap.status === 'playing' && (
         <div className="mother-alarm" role="alert">The mother is being eaten! Burst her (click or B)</div>
@@ -463,7 +519,7 @@ export function App() {
             <p>Spread your mycelium over half the forest floor. Beetles eat it; keep them off the mother mushroom.</p>
             <table>
               <tbody>
-                {HELP.map(([k, what]) => (
+                {(touch ? TOUCH_HELP : HELP).map(([k, what]) => (
                   <tr key={k}><th>{k}</th><td>{what}</td></tr>
                 ))}
               </tbody>

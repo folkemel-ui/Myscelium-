@@ -130,5 +130,11 @@ Things learned while building Mycelium that are worth knowing before the next ch
   (like `window.view`) must be the one kept, not the one thrown away.
 - Check a map's goal against its shape: Pine Hollow's first stream left 53–56% of the ground on the
   mother's bank, so the bridges (the whole point) were never needed. A test now guards it.
+- Small-screen rules are container queries on `.app` (not media queries), so they follow the game's
+  own area: squeezing `#root` in a big window tests them. Media queries follow the window and can't
+  be tested that way.
+- Touch can be tested in the browser pane by dispatching `PointerEvent`s with `pointerType:
+  'touch'` on the canvas (Pixi handles them like real fingers).
+- In a hidden pane `requestAnimationFrame` may never run: a script that awaits it times out.
 - Enemies need a way to leave. Before beetles got full and walked off, they piled up to 195 on
   one map.

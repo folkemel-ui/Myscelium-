@@ -98,14 +98,24 @@ Each forest brings one new idea to learn plus a step up in difficulty – not ju
 stronger beetles from Pack 10.
 
 - [x] **A stream through the middle** – Mycelium can't grow over water; a few fallen logs lie across it as bridges. Reach and hold the bridges to spread to the other side – and beetles can cut you off there. *(A stream two tiles wide winds from top to bottom a third of the way across, never shifting more than a tile a row so there's no gap; three fallen-log bridges cross it, top, middle and bottom. The mother's bank holds well under half the ground, so the bridges must be crossed to win (tested on five maps, with and without bridges). Drawn as a flowing blue stream with muddy banks and ripples, bridges as one log each, reaching onto both banks.)*
-- [x] **A pine forest** – Long rows and clumps of pines instead of round clusters, on a darker, cooler floor of needles, so it looks different at once. (Pines suit the shelf fungus from Pack 13.) *(11 rows of pines and 7 clumps, drawn from above as layered, spiky stars in five dark greens; the floor is darker and cooler, covered in needle clusters and pine cones.)*
+- [x] **A pine forest** – Long rows and clumps of pines instead of round clusters, on a darker, cooler floor of needles, so it looks different at once. (Pines suit the shelf fungus from Pack 14.) *(11 rows of pines and 7 clumps, drawn from above as layered, spiky stars in five dark greens; the floor is darker and cooler, covered in needle clusters and pine cones.)*
 - [x] **Fewer, bigger logs** – Acidic needles mean fewer rotting logs, but each holds more nutrients: reaching them is a race. *(8 logs of 60 nutrients, two near the start, against about 17 of 30 in the Little Wood.)*
 - [x] **Harder beetles** – They arrive after 15 s instead of 25 s, every 9 s down to 3 s instead of 12 down to 3.5, in pairs; and a new kind, the bark beetle, goes for mushrooms rather than threads. *(Adjusted to Pack 10's stronger beetles: from 15 s (Little Wood 25 s), every 6 s down to 2 s (8 to 2.5), swarms of 2 at least. A quarter are bark beetles: red-brown and smaller, they go for mushrooms, 30% faster with 1 less health.)*
 - [x] **A front to hold** – The mother starts near one edge, and beetles come mostly from the far side. *(The mother starts 6 tiles from the left edge; swarms come from the right 60% of the time, top and bottom 18% each, left 4%.)*
 - [x] **A bigger map** – 56×36 instead of 48×32, goal 50% as before. *(Scripted players on five maps: sharp wins in 3:09–3:50 beating 46–67 beetles; casual wins in 3:17–3:57 losing 1–7 mushrooms; nobody playing loses in 1:14–1:32.)*
 - [x] **Unlocking** – Win The Little Wood once; the menu then shows Pine Hollow open with a line on what's new ("A stream splits the forest. Hold the bridges."). *(The profile keeps which forests are won and a best time per forest, shown on each forest's row; profiles from before count a win as The Little Wood won. The end screen says "New forest open: Pine Hollow!" the first time. Saves remember their forest.)*
 
-### Pack 12 – A deeper profile
+### Pack 12 – On the phone ✓
+
+The game is published (https://folkemel-ui.github.io/Myscelium-/) and should play well on an iPhone.
+
+- [x] **Touch that works** – Dragging grows mycelium and tapping bursts a mushroom, without the page scrolling, zooming, selecting text or popping up menus. *(A finger that lifts without moving more than 8 px is a tap (burst, plant); one that moves is a grow drag from where it went down. A second finger cancels what the first was about to do, so a pinch never bursts or grows. The page never scrolls, bounces, double-tap-zooms, selects or shows long-press menus, and Safari's own pinch-zoom of the page is stopped. Tested with touch events: a tap bursts the mother on lifting, a drag grew 8 tiles, a pinch zoomed 2× and grew nothing.)*
+- [x] **Zoom and pan** – Pinch to zoom in on the fight and drag with two fingers to look around; on a computer, the mouse wheel zooms and a right-drag moves. (Moved up from the camera pack.) *(From the whole map (1×) to 4×, zooming around the fingers or the pointer; the view never shows past the map's edges. Also + / − / 0 on a keyboard. On a small screen a round starts zoomed in on the mother so tiles are at least 14 px (1.2× on a phone held sideways, 1.8× upright); on a computer it starts with the whole map, as before.)*
+- [x] **A compact panel** – On small screens the panel shrinks to fit in a corner, so the forest gets the room. *(Below 900 px wide or 520 high the panel is smaller and fits one row on a phone held sideways (844×390): smaller numbers, no prices or key numbers on the tools, no hint line. Messages and the mother's alarm move to the bottom. Under 520 px wide the time and spores a second hide too. It goes by the game's own area (a container query, iOS 16 and later).)*
+- [x] **Touch hints** – On a touch screen, the hint and the help speak of taps and pinches instead of keys, and a phone held upright is told the forest is bigger sideways. *(On a touch screen: "Drag to grow · tap a mushroom to burst it · pinch to zoom", and a help panel of taps, pinches and buttons. Held upright, a small "Turn your phone sideways for a bigger forest" button shows until tapped. The fullscreen button hides where the browser can't do it (iPhone Safari).)*
+- [x] **A Home Screen app** – An icon and app settings, so "Add to Home Screen" opens it full screen like an app, clear of the notch. *(An icon – the pink mother mushroom on glowing threads, on deep violet – in 180, 192 and 512 px, drawn by scripts/make-icons.mjs; app settings for iPhone and Android open it full screen with a dark status bar, and the panel and messages keep clear of the notch and the home bar. Not yet tried on a real iPhone.)*
+
+### Pack 13 – A deeper profile
 
 - [ ] **A name and a look** – Name your fungus (for example "The Violet Bloom") and choose a colour scheme for the mother mushroom and your threads; more schemes unlock as you level up.
 - [ ] **A mother that grows with you** – Every few levels her cap gets bigger and gains new markings, so your progress shows in every round.
@@ -114,7 +124,7 @@ stronger beetles from Pack 10.
 - [ ] **Progress charts** – Charts in the profile of your best time over the rounds and XP per round, to see yourself getting better.
 - [ ] **Achievements** – About 30 badges in a grid, some hidden until earned (for example "Win without a single mushroom", "Reach stage 4 in under 3 minutes"), each giving a little XP.
 
-### Pack 13 – New things to build
+### Pack 14 – New things to build
 
 Each is unlocked by reaching a player level, and the menu shows what the next level brings. They sit in a
 small build menu next to the two tools (keys 3 and up), with the price in red when it can't be afforded.
@@ -123,9 +133,8 @@ small build menu next to the two tools (keys 3 and up), with the price in red wh
 - [ ] **Shelf fungus (level 3)** – Grows on the side of a tree next to your network and slowly makes nutrients, so trees become useful instead of only walls. Costs nutrients.
 - [ ] **Spore tower (level 5)** – A tall mushroom that shoots spores at beetles from far away, every second. Costs nutrients and spores.
 
-### Pack 14 – Camera and panel
+### Pack 15 – A styled panel
 
-- [ ] **Zoom and pan** – Scroll to zoom in on the fight and drag to move around, with sharper art up close.
 - [ ] **Styled panel** – A glowing, organic top panel with icons for spores, nutrients and beetles instead of plain text.
 
 ## Later (not in a pack yet)
