@@ -156,38 +156,106 @@ Home Screen the game fills the whole screen. These make that easy and safe.
 - [x] **Burst-all button** – One button bursts every ready mushroom near beetles, since tapping small mushrooms mid-fight is hard. *(Bursts each ready mushroom with a living beetle within its burst reach, one after another, so a beetle beaten by the first doesn't use up the next. It glows with a yellow count of how many would burst. Also on the computer: a button and the A key.)*
 - [x] **Text size** – The panel's small text (10–11 px now) a bit bigger and bolder on a phone held sideways. *(With the tools gone from the top the numbers are 18 px bold (were 15), the share held 15 px, and spores a second and beetles beaten are back at 11 px bold.)*
 
-## Later (not in a pack yet)
+### Pack 18 – Clearer, fairer fights
 
-- **Infected beetles (an upgrade in the profile's tree)** – Once bought, a beetle beaten by a burst isn't just beaten: the spores take it over and it fights for you for a while (walks to the nearest wild beetle and bites it, never eats mycelium), then collapses and feeds the network. Only a few at once, so bursting stays the main defence. Fits the Defence branch, for example as a deeper upgrade that needs Mighty bursts; more ranks could mean longer-lasting or more allies.
-- Infected squirrels that join your side and attack.
-- Big mushrooms that work as towers; spore clouds that drift on the wind.
-- Birds, hedgehogs, badgers, foresters with fire and fungicide, dry weather, a rival fungus.
-- Spells with cooldowns: call rain, bloom, a mind spore that turns a forester.
-- Fruiting: release spores to a new, harder forest and keep **mutations** (a permanent upgrade tree).
-- Different forests: pine woods, swamp, jungle, and a city park at the end.
-- Stronger psychedelic effects as you progress: pulsing, rainbow shimmer, ripples, kaleidoscope colour.
+Beetles are the threat, but they are hard to see, can come from where you aren't looking, and a burst's
+reach is a guess. Small changes that make every fight fairer.
 
-### A menu that feels like the game (not in a pack yet)
+- [ ] **Beetles you can always see** – They are small and dark blue, and on the dark territory they nearly vanish. Give them a light rim, a small shadow or a faint warm glow so they stand out on any ground.
+- [ ] **Warnings for beetles out of view** – The arrows show for only 2.5 s, and zoomed in on a phone you don't see swarms coming at all. Markers at the screen's edge for beetles outside the view, and a short warning a few seconds before a swarm arrives.
+- [ ] **A burst's reach you can see** – Show the reach ring when hovering over or holding a mushroom, and a subtle mark on mushrooms that are ready to burst.
+- [ ] **No stray ring** – From 33% held a huge faint circle arcs across the whole forest (the stage wave or the vignette); it looks like a mistake. Soften it or take it out.
+- [ ] **Towers and shelves balance-tested** – The scripted playthroughs never build them, so nobody knows if they are too strong or too weak. Add them to the playthrough test and tune them.
+
+### Pack 19 – A forest that fills the screen
+
+The first look at a round: a dull, small scene in a rectangle with black at the sides and a tall panel
+on top.
+
+- [ ] **A livelier opening** – At the start the forest is flat grey-brown and the mother a small dot in a lot of nothing. Make her stand out more (a soft pulse, and a gentle zoom towards her for the first seconds).
+- [ ] **No black bars** – On a wide screen the map has dead black at both sides. Fill them with more, unplayable forest (dimmer trees and ferns fading into the dark).
+- [ ] **A soft edge** – The forest stops at a ruler-straight line. A ragged edge of trees and undergrowth, or a soft vignette, hides it.
+- [ ] **A slimmer panel on a computer** – It takes about 180 px over three rows, which makes the map smaller. Put the tools and round buttons in one row, or at the side as on the phone.
+- [ ] **The hint line off the map** – "Drag to grow mycelium…" sits on top of the forest's bottom edge. Move it below the map, or fade it out after the first few rounds.
+
+### Pack 20 – A calmer trip
+
+Late in a round the network looks like a busy circuit board. Keep the magic, lose the noise.
+
+- [ ] **Colour by distance from the mother** – At 47% held the network is yellow, pink, cyan, lime and purple branches all glowing at full strength. Let the colour shift with distance from the mother instead, so it reads as one living thing spreading outwards.
+- [ ] **Wandering threads** – In places the threads run in long straight parallel lines, and the grid shows through. More wander and fewer parallel runs.
+- [ ] **Mushroom glows that don't pile up** – Where mushrooms stand close their coloured halos merge into big blotches. Smaller halos, or a limit on how bright overlapping halos get.
+- [ ] **Clean corners** – The corner glow late in a round is a yellow-green haze that makes the edges look dirty. Fainter, and in the scheme's own colours.
+
+### Pack 21 – A menu that feels like the game
 
 The menu looks like a generic web dashboard: a grid of identical boxed cards in a system font, with
 pink-to-purple gradient buttons. Make it look grown, like the in-game panel. Start with a side-by-side
 test of the new direction (as in Pack 9) before changing everything.
 
-- **The forest as the background** – No big dark box over everything: the living forest fills the screen, slowly zoomed on the mother with the network pulsing, and the menu's parts float over it.
-- **One focus, not a grid of cards** – Profile, Forests and Saved rounds are three boxes of equal weight. Make playing the clear focus and everything else secondary.
-- **The panel's organic style** – Use the in-game panel's uneven, grown-looking corners, faint thread texture and breathing glow, so the menu and the round match.
-- **Fewer borders** – Almost everything has a 1 px border inside another bordered box (three or four deep in the upgrades). Separate things with space, light and texture instead.
-- **A real title** – "Mycelium" as a drawn wordmark (letters that sprout threads, a small cap over the i, or rounded hand-drawn letters) glowing in the scheme's colours, instead of a system font with a lime gradient.
-- **A font with character** – One rounded or slightly organic display font for headings; the system font stays for small text.
-- **No pink-to-purple gradient** – The Play buttons and level circle use the most "AI app" colour pair there is. Use the scheme's own glow on a dark, textured button, like a glowing spore pod.
-- **Forests as a path** – Each forest as a small painted picture of its map (the stream in Pine Hollow, the pines), joined to the next by a glowing thread; locked forests as dim silhouettes instead of a dashed "Locked" box plus "Coming later".
-- **One big Play button** – Pick a forest, then one large, glowing button plays it, instead of a Play button on every row (and Continue as yet another).
-- **The mother on the profile** – Show your own mother mushroom with the markings she has earned, in your colour scheme, with your name under her, instead of a gradient circle saying "Level 6". The XP bar as a thread growing towards her next marking.
-- **No empty space in the profile** – Tighten it, or fill it with your last round or a picture of what the next level opens.
-- **Upgrades as a drawn tree** – Nodes on a branching mycelium tree, three branches growing from a centre, lit up when bought; tapping a node shows what it does. On its own screen behind an "Upgrades (2 points)" button that glows when there are points to spend.
-- **Ranks as glowing spores** – An upgrade's ranks as small glowing spores along its branch, instead of dots in the corner.
-- **Backup and code tucked away** – "Back up to a file", "Load a backup" and "Move progress with a code" move to a small settings screen behind a gear.
-- **Gentle motion** – Spores drifting past, the Play button breathing, the title's glow slowly shifting.
-- **Into the forest** – Pressing Play zooms into the forest as the menu dissolves, instead of the menu just vanishing.
-- **A phone layout** – On a phone, not a squeezed desktop: the mother and Play on the first screen, with forests, upgrades and saves as tabs or pages to swipe.
+- [ ] **The forest as the background** – No big dark box over everything: the living forest fills the screen, slowly zoomed on the mother with the network pulsing, and the menu's parts float over it.
+- [ ] **One focus, not a grid of cards** – Profile, Forests and Saved rounds are three boxes of equal weight. Make playing the clear focus and everything else secondary.
+- [ ] **The panel's organic style** – Use the in-game panel's uneven, grown-looking corners, faint thread texture and breathing glow, so the menu and the round match.
+- [ ] **Fewer borders** – Almost everything has a 1 px border inside another bordered box (three or four deep in the upgrades). Separate things with space, light and texture instead.
+- [ ] **No pink-to-purple gradient** – The Play buttons and level circle use the most "AI app" colour pair there is. Use the scheme's own glow on a dark, textured button, like a glowing spore pod.
+- [ ] **A real title** – "Mycelium" as a drawn wordmark (letters that sprout threads, a small cap over the i, or rounded hand-drawn letters) glowing in the scheme's colours, instead of a system font with a lime gradient.
+- [ ] **A font with character** – One rounded or slightly organic display font for headings; the system font stays for small text.
+- [ ] **One big Play button** – Pick a forest, then one large, glowing button plays it, instead of a Play button on every row (and Continue as yet another).
+- [ ] **The mother on the profile** – Show your own mother mushroom with the markings she has earned, in your colour scheme, with your name under her, instead of a gradient circle saying "Level 6". The XP bar as a thread growing towards her next marking.
+- [ ] **No empty space in the profile** – Tighten it, or fill it with your last round or a picture of what the next level opens.
+- [ ] **Backup and code tucked away** – "Back up to a file", "Load a backup" and "Move progress with a code" move to a small settings screen behind a gear.
+- [ ] **Gentle motion** – Spores drifting past, the Play button breathing, the title's glow slowly shifting.
+- [ ] **Into the forest** – Pressing Play zooms into the forest as the menu dissolves, instead of the menu just vanishing.
 
+### Pack 22 – Forests, upgrades and the menu on the phone
+
+The second half of the new menu: the parts that need drawing.
+
+- [ ] **Forests as a path** – Each forest as a small painted picture of its map (the stream in Pine Hollow, the pines), joined to the next by a glowing thread; locked forests as dim silhouettes instead of a dashed "Locked" box plus "Coming later".
+- [ ] **Upgrades as a drawn tree** – Nodes on a branching mycelium tree, three branches growing from a centre, lit up when bought; tapping a node shows what it does. On its own screen behind an "Upgrades (2 points)" button that glows when there are points to spend.
+- [ ] **Ranks as glowing spores** – An upgrade's ranks as small glowing spores along its branch, instead of dots in the corner.
+- [ ] **A phone layout** – On a phone, not a squeezed desktop: the mother and Play on the first screen, with forests, upgrades and saves as tabs or pages to swipe.
+
+### Pack 23 – Infected beetles
+
+- [ ] **Infection (an upgrade in the profile's tree)** – Once bought, a beetle beaten by a burst isn't just beaten: the spores take it over and it fights for you for a while (walks to the nearest wild beetle and bites it, never eats mycelium), then collapses and feeds the network. Only a few at once, so bursting stays the main defence. Fits the Defence branch, for example as a deeper upgrade that needs Mighty bursts; more ranks could mean longer-lasting or more allies.
+- [ ] **A fungal look** – Infected beetles look taken over: a shell tinted in your glow colours, glowing spots, little stalks sprouting from the back. They get back up from the defeat flip, and when their time is up they sink into the ground and leave a tiny mushroom that fades.
+- [ ] **Counting them** – The panel shows your allies, the end screen counts beetles infected, and an achievement for infecting many in one round.
+- [ ] **Infected squirrels** – Later: a bigger ally that joins your side and attacks.
+
+### Pack 24 – Spells
+
+- [ ] **Spells with cooldowns** – Call rain (faster creep for a while), bloom (every mushroom makes double spores briefly), and a mind spore that turns an enemy. Opened by player level like the build tools.
+
+### Pack 25 – Level 3: The Swamp
+
+- [ ] **The Swamp** – A third forest with its own new idea, as the stream was for Pine Hollow: water that rises and falls, drowning mycelium in the low ground until it drops, and floating logs as moving bridges. Plus a step up in difficulty.
+
+### Pack 26 – New enemies
+
+- [ ] **More than beetles** – Birds that carry off a mushroom unless a tower is near, hedgehogs and badgers that dig up threads, foresters with fire and fungicide, and dry weather that slows growth. Each brought in by a forest or a stage of a round, so they arrive one at a time.
+
+### Pack 27 – Big mushrooms and drifting spores
+
+- [ ] **Big mushrooms** – Large mushrooms that work as towers.
+- [ ] **Spore clouds on the wind** – Spores that drift across the map, so a burst upwind reaches further.
+
+### Pack 28 – A rival fungus
+
+- [ ] **A rival fungus** – Another fungus spreads in another colour from across the map; where the two networks meet, they fight.
+
+### Pack 29 – Fruiting
+
+- [ ] **Fruiting** – Release spores to a new, harder forest and keep **mutations** (a permanent upgrade tree on top of the one there is).
+
+### Pack 30 – More forests
+
+- [ ] **Different forests** – A jungle, and a city park at the end (paths and lawns where nothing grows, gardeners who rake up threads).
+
+### Pack 31 – A deeper trip
+
+- [ ] **Stronger effects as you progress** – Pulsing, rainbow shimmer, ripples, kaleidoscope colour. Check against the calmer direction of Pack 9 and Pack 20 first: these must not bring back the noise.
+
+## Later (not in a pack yet)
+
+New ideas go here until they get a pack.
