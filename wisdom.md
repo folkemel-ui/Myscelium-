@@ -173,3 +173,20 @@ Things learned while building Mycelium that are worth knowing before the next ch
   plain rgba line just before as a fallback for older browsers.
 - Panel icons are small inline SVGs at the end of App.tsx, coloured by CSS classes (`.i-spores`,
   `.i-beetle` …), so a state like `.beetles.danger` can recolour them without new drawings.
+- Offline: `src/sw-template.js` becomes `dist/sw.js` at build time (the `offline` plugin in
+  vite.config.ts fills in every built file and a version hash). It only runs in the built game
+  (`npm run build` then `npx vite preview`, port 4173), never in `npm run dev`. Cache lookups need
+  `ignoreVary: true`: servers send `Vary: Origin` and the page's module requests carry an Origin,
+  so plain matches missed and the game was blank offline.
+- Browsers don't reliably look for a new service worker on reload; main.tsx calls `reg.update()`
+  at start and when the game comes back to the front.
+- Progress codes (`src/game/transfer.ts`) use `CompressionStream`, so codes need iOS 16.4+. Safari
+  only lets a page write to the clipboard during a tap, so the code is made ahead and copied
+  straight from the click.
+- The iPhone checks (install card, Home Screen welcome) can be tested in Chromium with Playwright's
+  iPhone devices; pretend to be the Home Screen app with
+  `Object.defineProperty(navigator, 'standalone', { value: true })` in an init script. The notch can
+  be pretended by setting `--safe-l`, `--safe-r`, `--safe-b`, `--safe-t` on `:root`.
+- Text next to an icon in a flex row: wrap the text in one `<span>`, or each word in `<b>` becomes
+  its own flex item with the gap around it.
+

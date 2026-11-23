@@ -15,6 +15,7 @@ import { thumbnail } from '../render/thumbnail';
 import { STAGES } from '../render/trip';
 import { applyScheme } from '../render/forestLayout';
 import { MainMenu } from './MainMenu';
+import { restoreCode } from '../game/transfer';
 import { ProfilePanel } from './ProfilePanel';
 import { SaveDialog } from './SaveDialog';
 import { formatTime, SpreadChart } from './SpreadChart';
@@ -391,10 +392,20 @@ export function App() {
   const loadBackup = (text: string) => {
     const problem = restoreBackup(store, text);
     if (problem) return problem;
+    reloadSaves();
+    say('Backup loaded');
+    return null;
+  };
+  const reloadSaves = () => {
     setProfile(readProfile(store));
     setAutosave(readAutosave(store));
     setSlots(readSlots());
-    say('Backup loaded');
+  };
+  const loadCode = async (code: string) => {
+    const problem = await restoreCode(store, code);
+    if (problem) return problem;
+    reloadSaves();
+    say('Progress loaded');
     return null;
   };
 
@@ -597,7 +608,7 @@ export function App() {
           profile={profile} onPlay={play} onBuy={buy}
           autosave={autosave} onContinue={() => autosave && loadSaved(autosave)}
           slots={slots} onLoadSlot={(n) => slots[n - 1] && loadSaved(slots[n - 1]!.round)} onDeleteSlot={deleteSlot}
-          onBackup={downloadBackup} onRestore={loadBackup} onOpenProfile={() => setShowProfile(true)}
+          onBackup={downloadBackup} onRestore={loadBackup} onCode={loadCode} onOpenProfile={() => setShowProfile(true)}
         />
       )}
       {screen === 'menu' && showProfile && (

@@ -4,6 +4,7 @@ import {
 } from '../game/progress';
 import type { SavedRound, SlotSave } from '../game/save';
 import { SlotCard } from './SaveDialog';
+import { AppWelcome, CopyCode, InstallCard, PasteCode, showAppWelcome, showInstallCard } from './Install';
 import { formatTime } from './SpreadChart';
 
 interface MenuProps {
@@ -17,6 +18,7 @@ interface MenuProps {
   onDeleteSlot: (n: number) => void;
   onBackup: () => void;
   onRestore: (text: string) => string | null; // a reason if the file was not a backup
+  onCode: (code: string) => Promise<string | null>; // load a progress code; a reason if it wasn't one
   onOpenProfile: () => void;
 }
 
@@ -26,6 +28,10 @@ export function MainMenu(p: MenuProps) {
   const need = xpToNext(profile.level);
   const unfinished = p.autosave;
   const held = unfinished?.history.length ? unfinished.history[unfinished.history.length - 1].held : 0;
+  // Once a visit: in Safari on an iPhone, how to play full screen; in the Home Screen app on a fresh
+  // profile, how to bring progress over.
+  const [install, setInstall] = useState(showInstallCard);
+  const [welcome, setWelcome] = useState(() => showAppWelcome(profile.rounds));
   return (
     <div className="overlay menu">
       <div className="menu-card">
@@ -33,6 +39,8 @@ export function MainMenu(p: MenuProps) {
           <h1>Mycelium</h1>
           <p>Spread through the forest. Bring it to life.</p>
         </header>
+        {install && <InstallCard rounds={profile.rounds} onClose={() => setInstall(false)} />}
+        {welcome && <AppWelcome onCode={p.onCode} onClose={() => setWelcome(false)} />}
 
         <div className="menu-grid">
           <section className="profile" aria-label="Your profile">
@@ -58,7 +66,7 @@ export function MainMenu(p: MenuProps) {
               <div><dt>Wins</dt><dd>{profile.wins}</dd></div>
               <div><dt>Forests won</dt><dd>{profile.forestsWon.length} of {LEVELS.filter((l) => l.playable).length}</dd></div>
             </dl>
-            <Backup onBackup={p.onBackup} onRestore={p.onRestore} />
+            <Backup onBackup={p.onBackup} onRestore={p.onRestore} onCode={p.onCode} />
           </section>
 
           <section className="levels" aria-label="Forests">
@@ -180,8 +188,13 @@ function SavedSlot({ n, save, onLoad, onDelete }: {
 }
 
 // Back everything up to a file, or load a backup (asking before it replaces anything).
-function Backup({ onBackup, onRestore }: { onBackup: () => void; onRestore: (text: string) => string | null }) {
+function Backup({ onBackup, onRestore, onCode }: {
+  onBackup: () => void;
+  onRestore: (text: string) => string | null;
+  onCode: (code: string) => Promise<string | null>;
+}) {
   const input = useRef<HTMLInputElement>(null);
+  const [codes, setCodes] = useState(false);
   const [pending, setPending] = useState<{ name: string; text: string } | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const choose = async (file: File | undefined) => {
@@ -207,6 +220,16 @@ function Backup({ onBackup, onRestore }: { onBackup: () => void; onRestore: (tex
         </div>
       )}
       {problem && <small className="problem">{problem}</small>}
+      <button className="link" onClick={() => setCodes((v) => !v)} aria-expanded={codes}>
+        {codes ? '▾' : '▸'} Move progress with a code
+      </button>
+      {codes && (
+        <div className="codes">
+          <small>Copy a code here, paste it in another browser or the Home Screen app.</small>
+          <CopyCode label="Copy progress code" />
+          <PasteCode onCode={onCode} ask />
+        </div>
+      )}
       <input ref={input} type="file" accept=".json,application/json" hidden onChange={(e) => choose(e.target.files?.[0])} />
     </div>
   );
