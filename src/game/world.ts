@@ -31,6 +31,21 @@ export interface Beetle {
   kind?: 'beetle' | 'bark'; // bark beetles go for mushrooms, are quicker and frailer
 }
 
+// A shelf fungus on a tree: makes nutrients while the network touches its tree.
+export interface Shelf {
+  id: number;
+  x: number;
+  y: number;
+}
+
+// A spore tower on the network: shoots the nearest beetle in range.
+export interface Tower {
+  id: number;
+  x: number;
+  y: number;
+  timer: number; // seconds until it can shoot again
+}
+
 // A spore cloud, for the drawing only.
 export interface Puff {
   x: number;
@@ -122,7 +137,8 @@ export interface RoundStats {
 // them as it draws; the game keeps only the latest MAX_EVENTS if nobody does.
 export type GameEvent =
   | { kind: 'hit'; beetle: number; damage: number }
-  | { kind: 'defeat'; beetle: number; x: number; y: number; nutrients: number };
+  | { kind: 'defeat'; beetle: number; x: number; y: number; nutrients: number }
+  | { kind: 'shot'; tower: number; beetle: number; x: number; y: number; tx: number; ty: number }; // from and to, in tiles
 export const MAX_EVENTS = 200;
 
 export interface Game {
@@ -135,6 +151,8 @@ export interface Game {
   growable: number; // how many tiles mycelium can cover
   covered: number;
   mushrooms: Mushroom[];
+  shelves: Shelf[];
+  towers: Tower[];
   beetles: Beetle[];
   puffs: Puff[];
   events: GameEvent[];
@@ -220,6 +238,8 @@ function finishLevel(p: {
     growable: 0,
     covered: 0,
     mushrooms: [],
+    shelves: [],
+    towers: [],
     beetles: [],
     puffs: [],
     events: [],

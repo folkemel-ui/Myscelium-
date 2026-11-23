@@ -15,6 +15,17 @@ export interface LevelInfo {
   needs?: number; // the forest that must be won first
 }
 
+// Things to build during a round, opened by the player's level.
+export type UnlockId = 'digest' | 'shelf' | 'tower';
+export const UNLOCKS: { id: UnlockId; level: number; name: string; about: string }[] = [
+  { id: 'digest', level: 2, name: 'Digest', about: 'Swap spores for nutrients, or nutrients for spores' },
+  { id: 'shelf', level: 3, name: 'Shelf fungus', about: 'Grows on a tree by your network and makes nutrients' },
+  { id: 'tower', level: 5, name: 'Spore tower', about: 'Built on your mycelium, it shoots the nearest beetle' },
+];
+export const unlocked = (p: Profile, id: UnlockId) => p.level >= UNLOCKS.find((u) => u.id === id)!.level;
+// The next thing a level-up will open, if any is left.
+export const nextUnlock = (p: Profile) => UNLOCKS.find((u) => p.level < u.level) ?? null;
+
 export const LEVELS: LevelInfo[] = [
   { id: 1, name: 'The Little Wood', about: 'A small, quiet forest. Beetles come to feed.', playable: true },
   { id: 2, name: 'Pine Hollow', about: 'A stream splits the forest. Hold the bridges.', playable: true, needs: 1, opens: 'Win The Little Wood to open' },

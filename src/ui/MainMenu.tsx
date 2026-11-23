@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import {
-  BRANCHES, branchPoints, canBuy, forestOpen, LEVELS, rank, UPGRADES, xpToNext, type Profile, type UpgradeId,
+  BRANCHES, branchPoints, canBuy, forestOpen, LEVELS, nextUnlock, rank, UPGRADES, xpToNext, type Profile, type UpgradeId,
 } from '../game/progress';
 import type { SavedRound, SlotSave } from '../game/save';
 import { SlotCard } from './SaveDialog';
@@ -47,6 +47,12 @@ export function MainMenu(p: MenuProps) {
               <div className="xp-text"><span>{profile.xp} / {need} XP</span><span>to level {profile.level + 1}</span></div>
               <div className="bar"><div style={{ width: `${(profile.xp / need) * 100}%` }} /></div>
             </div>
+            {nextUnlock(profile) && (
+              <p className="next-unlock">
+                <span>Level {nextUnlock(profile)!.level} opens</span> <strong>{nextUnlock(profile)!.name}</strong>
+                <small>{nextUnlock(profile)!.about}</small>
+              </p>
+            )}
             <dl className="tallies">
               <div><dt>Rounds</dt><dd>{profile.rounds}</dd></div>
               <div><dt>Wins</dt><dd>{profile.wins}</dd></div>

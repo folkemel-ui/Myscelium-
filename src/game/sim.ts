@@ -1,7 +1,7 @@
 // The rules of the game: one step moves everything on by dt seconds. Plain TypeScript with no
 // drawing, so it can be tested on its own.
 import * as C from './constants';
-import { canHoldMycelium, idx, inside, MAX_EVENTS, TILE, type Beetle, type Game, type GameEvent, type Mushroom } from './world';
+import { canHoldMycelium, idx, inside, MAX_EVENTS, TILE, type Beetle, type Game, type GameEvent, type Mushroom, type Shelf, type Tower } from './world';
 
 const SIDES = [[1, 0], [-1, 0], [0, 1], [0, -1]] as const;
 
@@ -37,10 +37,18 @@ function removeMycelium(g: Game, i: number) {
     else g.stats.mushroomsLost++;
     g.mushrooms.splice(k, 1);
   }
+  const t = g.towers.findIndex((v) => idx(g, v.x, v.y) === i);
+  if (t >= 0) g.towers.splice(t, 1);
 }
 
 export const mushroomAt = (g: Game, x: number, y: number): Mushroom | undefined =>
   g.mushrooms.find((m) => m.x === x && m.y === y);
+export const towerAt = (g: Game, x: number, y: number): Tower | undefined => g.towers.find((t) => t.x === x && t.y === y);
+export const shelfAt = (g: Game, x: number, y: number): Shelf | undefined => g.shelves.find((s) => s.x === x && s.y === y);
+
+// A shelf makes nutrients only while the network still touches its tree.
+export const shelfConnected = (g: Game, s: { x: number; y: number }) =>
+  SIDES.some(([dx, dy]) => inside(g, s.x + dx, s.y + dy) && g.mycelium[idx(g, s.x + dx, s.y + dy)] === 1);
 
 // --- What the player can do. Each returns null when it worked, or a reason it didn't. ---
 
@@ -59,10 +67,54 @@ export function plantMushroom(g: Game, x: number, y: number): string | null {
   if (!inside(g, x, y) || !g.mycelium[idx(g, x, y)]) return 'Mushrooms grow on your mycelium';
   if (g.tiles[idx(g, x, y)] === TILE.LOG) return 'This log is still rotting';
   if (mushroomAt(g, x, y)) return 'There is a mushroom here already';
+  if (towerAt(g, x, y)) return 'There is a spore tower here';
   if (g.nutrients < g.mods.mushroomCost) return `A mushroom costs ${g.mods.mushroomCost} nutrients`;
   g.nutrients -= g.mods.mushroomCost;
   g.stats.mushrooms++;
   g.mushrooms.push({ id: g.nextId++, x, y, mother: false, puffTimer: C.PUFF_INTERVAL, cooldown: 0 });
+  return null;
+}
+
+// Swap spores for nutrients, or nutrients for spores.
+export function digest(g: Game, into: 'nutrients' | 'spores'): string | null {
+  if (g.status !== 'playing') return 'The level is over';
+  if (into === 'nutrients') {
+    if (g.spores < C.DIGEST_SPORES_IN) return `Digesting needs ${C.DIGEST_SPORES_IN} spores`;
+    g.spores -= C.DIGEST_SPORES_IN;
+    g.nutrients += C.DIGEST_NUTRIENTS_OUT;
+  } else {
+    if (g.nutrients < C.DIGEST_NUTRIENTS_IN) return `Digesting needs ${C.DIGEST_NUTRIENTS_IN} nutrients`;
+    g.nutrients -= C.DIGEST_NUTRIENTS_IN;
+    g.spores += C.DIGEST_SPORES_OUT;
+  }
+  return null;
+}
+
+// A shelf fungus on a tree that touches the network.
+export function placeShelf(g: Game, x: number, y: number): string | null {
+  if (g.status !== 'playing') return 'The level is over';
+  if (!inside(g, x, y) || g.tiles[idx(g, x, y)] !== TILE.TREE) return 'Shelf fungus grows on trees';
+  if (shelfAt(g, x, y)) return 'This tree has a shelf already';
+  if (!shelfConnected(g, { x, y })) return 'The tree must touch your mycelium';
+  if (g.nutrients < C.SHELF_COST) return `A shelf costs ${C.SHELF_COST} nutrients`;
+  g.nutrients -= C.SHELF_COST;
+  g.shelves.push({ id: g.nextId++, x, y });
+  return null;
+}
+
+// A spore tower on the network.
+export function buildTower(g: Game, x: number, y: number): string | null {
+  if (g.status !== 'playing') return 'The level is over';
+  if (!inside(g, x, y) || !g.mycelium[idx(g, x, y)]) return 'Towers grow on your mycelium';
+  if (g.tiles[idx(g, x, y)] === TILE.LOG) return 'This log is still rotting';
+  if (mushroomAt(g, x, y)) return 'There is a mushroom here';
+  if (towerAt(g, x, y)) return 'There is a tower here already';
+  if (g.nutrients < C.TOWER_NUTRIENTS || g.spores < C.TOWER_SPORES) {
+    return `A tower costs ${C.TOWER_NUTRIENTS} nutrients and ${C.TOWER_SPORES} spores`;
+  }
+  g.nutrients -= C.TOWER_NUTRIENTS;
+  g.spores -= C.TOWER_SPORES;
+  g.towers.push({ id: g.nextId++, x, y, timer: 0 });
   return null;
 }
 
@@ -105,6 +157,8 @@ export function step(g: Game, dt: number) {
   spawnBeetles(g);
   for (const b of g.beetles) moveBeetle(g, b, dt);
   mushroomsPuff(g, dt);
+  towersShoot(g, dt);
+  for (const s of g.shelves) if (shelfConnected(g, s)) g.nutrients += C.SHELF_NUTRIENTS * dt;
 
   const alive = g.beetles.filter((b) => b.hp > 0);
   for (const b of g.beetles) {
@@ -214,15 +268,15 @@ function spawnBeetles(g: Game) {
   }
 }
 
-// What a beetle goes for: the mother, the nearest mushroom, or the nearest mycelium.
+// What a beetle goes for: the mother, the nearest mushroom or tower, or the nearest mycelium.
 function pickTarget(g: Game, b: Beetle): number {
   const mother = g.mushrooms.find((m) => m.mother);
   if (b.aim === 'mother' && mother && g.mycelium[idx(g, mother.x, mother.y)]) return idx(g, mother.x, mother.y);
   if (b.aim === 'mushroom') {
     let best = -1;
     let bestD = Infinity;
-    for (const m of g.mushrooms) {
-      if (m.mother || !g.mycelium[idx(g, m.x, m.y)]) continue;
+    for (const m of [...g.mushrooms, ...g.towers]) {
+      if (('mother' in m && m.mother) || !g.mycelium[idx(g, m.x, m.y)]) continue;
       const d = (m.x + 0.5 - b.x) ** 2 + (m.y + 0.5 - b.y) ** 2;
       if (d < bestD) {
         bestD = d;
@@ -234,14 +288,19 @@ function pickTarget(g: Game, b: Beetle): number {
   return nearestMycelium(g, b);
 }
 
-// The mushrooms being eaten right now, and how far along (0..1) the beetle is.
-export function underAttack(g: Game): { mushroom: Mushroom; progress: number }[] {
-  const out: { mushroom: Mushroom; progress: number }[] = [];
-  for (const m of g.mushrooms) {
+// The mushrooms and towers being eaten right now, and how far along (0..1) the beetle is.
+export interface Attacked { x: number; y: number; mother: boolean; tower: boolean; progress: number }
+export function underAttack(g: Game): Attacked[] {
+  const out: Attacked[] = [];
+  const things = [
+    ...g.mushrooms.map((m) => ({ x: m.x, y: m.y, mother: m.mother, tower: false })),
+    ...g.towers.map((t) => ({ x: t.x, y: t.y, mother: false, tower: true })),
+  ];
+  for (const m of things) {
     const tile = idx(g, m.x, m.y);
     let most = 0;
     for (const b of g.beetles) if (b.target === tile && b.eatTimer > 0) most = Math.max(most, b.eatTimer / eatTimeFor(g, tile));
-    if (most > 0) out.push({ mushroom: m, progress: Math.min(1, most) });
+    if (most > 0) out.push({ ...m, progress: Math.min(1, most) });
   }
   return out;
 }
@@ -249,6 +308,7 @@ export function underAttack(g: Game): { mushroom: Mushroom; progress: number }[]
 // How long a tile takes to eat: mushrooms, and the mother most of all, hold out longer.
 export function eatTimeFor(g: Game, tile: number) {
   const m = g.mushrooms.find((v) => idx(g, v.x, v.y) === tile);
+  if (!m && g.towers.some((t) => idx(g, t.x, t.y) === tile)) return g.mods.eatTime * C.TOWER_EAT_FACTOR;
   return g.mods.eatTime * (!m ? 1 : m.mother ? C.MOTHER_EAT_FACTOR : C.MUSHROOM_EAT_FACTOR);
 }
 
@@ -317,5 +377,30 @@ function mushroomsPuff(g: Game, dt: number) {
     if (!g.beetles.some((b) => b.hp > 0 && Math.hypot(b.x - cx, b.y - cy) <= range)) continue;
     m.puffTimer = m.mother ? g.mods.motherPuffInterval : C.PUFF_INTERVAL;
     sporeCloud(g, cx, cy, range, C.PUFF_DAMAGE, false);
+  }
+}
+
+// Each tower shoots a spore bolt at the nearest living beetle in range, once a second.
+function towersShoot(g: Game, dt: number) {
+  for (const t of g.towers) {
+    t.timer = Math.max(0, t.timer - dt);
+    if (t.timer > 0) continue;
+    const cx = t.x + 0.5;
+    const cy = t.y + 0.5;
+    let best: Beetle | undefined;
+    let bestD = C.TOWER_RANGE;
+    for (const b of g.beetles) {
+      if (b.hp <= 0) continue;
+      const d = Math.hypot(b.x - cx, b.y - cy);
+      if (d <= bestD) {
+        bestD = d;
+        best = b;
+      }
+    }
+    if (!best) continue;
+    t.timer = C.TOWER_INTERVAL;
+    best.hp -= C.TOWER_DAMAGE;
+    tell(g, { kind: 'shot', tower: t.id, beetle: best.id, x: cx, y: cy, tx: best.x, ty: best.y });
+    tell(g, { kind: 'hit', beetle: best.id, damage: C.TOWER_DAMAGE });
   }
 }

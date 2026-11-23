@@ -3,7 +3,10 @@
 // as the mycelium takes over.
 import { Application, ColorMatrixFilter, Container, Graphics, Sprite, Texture, type FederatedPointerEvent } from 'pixi.js';
 import { WIN_COVERAGE } from '../game/constants';
-import { burst, canGrowAt, coverage, growMycelium, mushroomAt, nearestReadyMushroom, plantMushroom } from '../game/sim';
+import {
+  buildTower, burst, canGrowAt, coverage, growMycelium, mushroomAt, nearestReadyMushroom, placeShelf, plantMushroom, shelfAt,
+  shelfConnected, towerAt,
+} from '../game/sim';
 import { idx, inside, TILE, type Game } from '../game/world';
 import { CreatureView } from './CreatureView';
 import { paintFloor, paintLightSpot } from './floor';
@@ -15,7 +18,7 @@ import {
   CANOPY_GREENS, crownLayout, hash, PINE_GREENS, lightAt, lightSpots, logLook, sway, TS, type Crown, type LightSpot,
 } from './forestLayout';
 
-export type Tool = 'grow' | 'mushroom';
+export type Tool = 'grow' | 'mushroom' | 'shelf' | 'tower';
 
 // How far (screen pixels) a finger may move and still count as a tap rather than a drag.
 const TAP_SLOP = 8;
@@ -118,9 +121,9 @@ export class GameView {
     await view.app.init({ resizeTo: host, background: 0x15110d, antialias: true });
     host.appendChild(view.app.canvas);
     view.world.addChild(
-      view.floor, view.trip.ground, view.logs, view.network.glowLayer, view.network.threadLayer, view.canopy,
+      view.floor, view.trip.ground, view.logs, view.network.glowLayer, view.network.threadLayer, view.canopy, view.creatures.shelfLayer,
       view.trip.spots, view.light, view.lightMask, view.trip.air, view.trip.airMask, view.creatures.halos,
-      view.creatures.under, view.creatures.mushroomLayer, view.creatures.spores, view.creatures.beetleLayer, view.creatures.danger, view.hover,
+      view.creatures.under, view.creatures.mushroomLayer, view.creatures.spores, view.creatures.beetleLayer, view.creatures.bolts, view.creatures.danger, view.hover,
     );
     view.light.mask = view.lightMask;
     view.lightTexture = Texture.from(paintLightSpot());
@@ -261,6 +264,8 @@ export class GameView {
     const onMushroom = mushroomAt(g, x, y) !== undefined;
     if (onMushroom) this.report(burst(g, x, y));
     else if (this.tool === 'mushroom') return this.report(plantMushroom(g, x, y));
+    else if (this.tool === 'shelf') return this.report(placeShelf(g, x, y));
+    else if (this.tool === 'tower') return this.report(buildTower(g, x, y));
     if (this.tool !== 'grow') return;
     this.dragging = true;
     this.lastDragTile = i;
@@ -472,11 +477,14 @@ export class GameView {
     if (i < 0 || g.status !== 'playing') return;
     const x = i % g.w;
     const y = Math.floor(i / g.w);
+    const onNetwork = g.mycelium[i] === 1 && g.tiles[i] !== TILE.LOG && !towerAt(g, x, y);
     const ok = mushroomAt(g, x, y)
       ? true
       : this.tool === 'grow'
         ? canGrowAt(g, x, y)
-        : g.mycelium[i] === 1 && g.tiles[i] !== TILE.LOG;
+        : this.tool === 'shelf'
+          ? g.tiles[i] === TILE.TREE && !shelfAt(g, x, y) && shelfConnected(g, { x, y })
+          : onNetwork;
     h.rect(x * TS + 1, y * TS + 1, TS - 2, TS - 2).stroke({ width: 2, color: ok ? 0xffffff : 0xff5050, alpha: 0.8 });
   }
 }

@@ -8,8 +8,9 @@
 import { Container, Graphics, Sprite, Texture } from 'pixi.js';
 import { DOT_SIZE, dotTexture } from './textures';
 import { BEETLE_HP } from '../game/constants';
-import { underAttack } from '../game/sim';
-import type { Game, Mushroom, Puff } from '../game/world';
+import { shelfConnected, underAttack } from '../game/sim';
+import type { Game, Mushroom, Puff, Tower } from '../game/world';
+import { boltAt, shelfFacing, towerKick } from './buildings';
 import {
   flip, FLASH_TIME, legSwing, moveParticle, sparkleAt, SPARKLE_TIME, sporeBurst, sproutScale, squashScale,
   type Particle,
@@ -54,6 +55,10 @@ export class CreatureView {
   readonly beetleLayer = new Container();
   readonly danger = new Graphics(); // arrows where beetles come in, rings on what is being eaten
   readonly sparkles = new Graphics(); // on the screen, above the forest and its colour filter
+  readonly shelfLayer = new Graphics(); // shelf fungus, on the tree crowns
+  readonly bolts = new Graphics(); // spore bolts flying from towers to beetles
+  private towerShapes = new Map<number, { shape: Graphics; born: number; shot: number }>();
+  private flyingBolts: { x: number; y: number; tx: number; ty: number; start: number; color: number }[] = [];
   private shrooms = new Map<number, { shape: Graphics; halo: Sprite; born: number; burst: number }>();
   private seenPuffs = new WeakSet<Puff>();
   private particles: Particle[] = [];
@@ -71,11 +76,14 @@ export class CreatureView {
     this.mushroomLayer.sortableChildren = true;
     this.spores.blendMode = 'add';
     this.sparkles.blendMode = 'add';
+    this.bolts.blendMode = 'add';
   }
 
   reset() {
     for (const layer of [this.halos, this.mushroomLayer, this.beetleLayer]) for (const c of layer.removeChildren()) c.destroy({ children: true });
     this.shrooms.clear();
+    this.towerShapes.clear();
+    this.flyingBolts = [];
     this.bugs.clear();
     this.corpses = [];
     this.particles = [];
@@ -91,6 +99,7 @@ export class CreatureView {
   update(g: Game, clock: number, dt: number, share: number, hooks: CreatureHooks) {
     this.drawDanger(g, clock);
     this.updateMushrooms(g, clock, share);
+    this.updateBuildings(g, clock);
     this.updatePuffs(g, clock, dt);
     this.updateBeetles(g, clock, hooks);
     this.updateCorpses(clock);
@@ -150,6 +159,70 @@ export class CreatureView {
     }
   }
 
+  // --- Shelves, towers and bolts ---
+
+  private updateBuildings(g: Game, clock: number) {
+    // Shelf fungus: a few half-moon brackets on the side of the tree that touches the network,
+    // warm and breathing while it feeds, grey while cut off.
+    const sh = this.shelfLayer.clear();
+    for (const s of g.shelves) {
+      const [fx, fy] = shelfFacing(g, s.x, s.y);
+      const live = shelfConnected(g, s);
+      const cx = (s.x + 0.5 + fx * 0.32) * TS;
+      const cy = (s.y + 0.5 + fy * 0.32) * TS;
+      const along = fx !== 0 ? [0, 1] : [1, 0]; // the brackets line up along the tree's edge
+      const turn = Math.atan2(fy, fx);
+      const breathe = live ? 0.85 + 0.15 * Math.sin(clock * 2.4 + s.id) : 0.55;
+      for (let k = -1; k <= 1; k++) {
+        const r = (k === 0 ? 6 : 4.5) * (live ? 1 : 0.9);
+        const bx = cx + along[0] * k * 6;
+        const by = cy + along[1] * k * 6;
+        const color = live ? (k === 0 ? 0xffb84f : 0xffd27a) : 0x8a8274;
+        sh.moveTo(bx, by).arc(bx, by, r, turn - Math.PI / 2, turn + Math.PI / 2).closePath()
+          .fill({ color, alpha: breathe });
+        sh.moveTo(bx, by).arc(bx, by, r * 0.55, turn - Math.PI / 2, turn + Math.PI / 2)
+          .stroke({ width: 1, color: live ? 0x7a4a10 : 0x5a554c, alpha: 0.6 });
+        if (live) sh.circle(bx + fx * r * 0.7, by + fy * r * 0.7, 1.2).fill({ color: 0xfff3b0, alpha: breathe });
+      }
+    }
+
+    // Towers: a tall stalk with a glowing spore sac on top that swells when it shoots.
+    const alive = new Set<number>();
+    for (const t of g.towers) {
+      alive.add(t.id);
+      let v = this.towerShapes.get(t.id);
+      if (!v) {
+        v = { shape: towerShape(t), born: this.fresh ? -Infinity : clock, shot: -Infinity };
+        this.towerShapes.set(t.id, v);
+        this.mushroomLayer.addChild(v.shape);
+      }
+      const sprout = sproutScale(clock - v.born);
+      const kick = towerKick(clock - v.shot);
+      v.shape.scale.set(sprout.sx * (2 - kick) ** 0.5, sprout.sy * kick);
+      v.shape.position.set((t.x + 0.5) * TS, (t.y + 0.5) * TS + 6);
+      v.shape.zIndex = t.y;
+    }
+    for (const [id, v] of this.towerShapes) {
+      if (alive.has(id)) continue;
+      v.shape.destroy();
+      this.towerShapes.delete(id);
+    }
+
+    // Bolts: a bright head with a fading tail, then a little flash at the beetle.
+    const b = this.bolts.clear();
+    this.flyingBolts = this.flyingBolts.filter((f) => boltAt(clock - f.start) !== null);
+    for (const f of this.flyingBolts) {
+      const at = boltAt(clock - f.start)!;
+      const hx = f.x + (f.tx - f.x) * at.along;
+      const hy = f.y + (f.ty - f.y) * at.along;
+      const back = Math.max(0, at.along - 0.35);
+      b.moveTo(f.x + (f.tx - f.x) * back, f.y + (f.ty - f.y) * back).lineTo(hx, hy)
+        .stroke({ width: 2.5, color: f.color, alpha: 0.7 * at.alpha });
+      b.circle(hx, hy, at.along >= 1 ? 5 * at.alpha + 2 : 2.5).fill({ color: 0xffffff, alpha: at.alpha });
+      b.circle(hx, hy, 5).fill({ color: f.color, alpha: 0.35 * at.alpha });
+    }
+  }
+
   // --- Danger ---
 
   // Arrows at the edge where beetles have just come in (for ARRIVAL_WARNING seconds), and a red,
@@ -171,10 +244,10 @@ export class CreatureView {
       d.moveTo(x + nx * s, y + ny * s).lineTo(x - ny * s * 0.8, y + nx * s * 0.8).lineTo(x + ny * s * 0.8, y - nx * s * 0.8).closePath()
         .fill({ color: 0xff4a3d, alpha: 0.85 * fade * blink });
     }
-    for (const { mushroom: m, progress } of underAttack(g)) {
+    for (const { progress, ...m } of underAttack(g)) {
       const cx = (m.x + 0.5) * TS;
       const cy = (m.y + 0.5) * TS;
-      const r = m.mother ? 22 : 15;
+      const r = m.mother ? 22 : m.tower ? 17 : 15;
       d.circle(cx, cy, r + 6 * blink).fill({ color: 0xff2a2a, alpha: 0.18 + 0.14 * blink });
       d.circle(cx, cy, r).stroke({ width: 2, color: 0xff6a5a, alpha: 0.4 });
       d.moveTo(cx, cy - r).arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2)
@@ -268,6 +341,10 @@ export class CreatureView {
       if (e.kind === 'hit') {
         const bug = this.bugs.get(e.beetle);
         if (bug) bug.flash = clock;
+      } else if (e.kind === 'shot') {
+        const t = this.towerShapes.get(e.tower);
+        if (t) t.shot = clock;
+        this.flyingBolts.push({ x: e.x * TS, y: e.y * TS - 14, tx: e.tx * TS, ty: e.ty * TS, start: clock, color: GLOW[(e.tower % 4) + 1] });
       } else {
         const bug = this.bugs.get(e.beetle);
         const parts = beetleParts();
@@ -343,6 +420,27 @@ export class CreatureView {
 // A mushroom seen from a little above and the side, with its stem's foot at (0, 0). Caps come in
 // three shapes (a round dome, a wide flat cap, a tall cone) and sizes from 0.85 to 1.15; the
 // mother is a big spotted dome with a frilly ring on her stem.
+// A spore tower: roots in the ground, a tall pale stalk and a round spore sac on top, dotted with
+// glowing pores. Drawn round its foot so it can swell upwards when it shoots.
+function towerShape(t: Tower) {
+  const s = new Graphics();
+  const sac = GLOW[(t.id % 4) + 1];
+  s.ellipse(2, 0, 9, 3.2).fill({ color: 0x000000, alpha: 0.32 });
+  for (const a of [-0.5, 0.4, 1.3, 2.4, 3.2]) {
+    s.moveTo(0, -1).lineTo(Math.cos(a) * 7, Math.sin(a) * 2.5).stroke({ width: 1.5, color: 0xe9dcbc, alpha: 0.8 });
+  }
+  s.roundRect(-2.6, -16, 5.2, 16, 2.4).fill(0xf3e6c8);
+  s.rect(0.4, -16, 2.2, 16).fill({ color: 0x000000, alpha: 0.12 });
+  for (const y of [-5, -10]) s.ellipse(0, y, 3.4, 1).fill({ color: 0xd8c8a0, alpha: 0.9 }); // rings on the stalk
+  s.circle(0, -20, 6.5).fill(shade(sac, 0.55));
+  s.circle(-0.6, -20.6, 5.6).fill(sac);
+  for (const [px, py] of [[-2.5, -22], [2, -21.5], [0, -17.8], [-3, -18.5], [3, -18.4], [0.4, -24]]) {
+    s.circle(px, py, 0.9).fill({ color: 0xffffff, alpha: 0.85 });
+  }
+  s.circle(-2.2, -22.6, 1.6).fill({ color: 0xffffff, alpha: 0.35 }); // a shine
+  return s;
+}
+
 function mushroomShape(g: Game, m: Mushroom, tier = 0) {
   const s = new Graphics();
   const tile = m.y * g.w + m.x;

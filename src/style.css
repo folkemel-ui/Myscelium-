@@ -44,6 +44,9 @@ input { -webkit-user-select: text; user-select: text; }
 }
 .tools button small { color: var(--muted); font-size: 11px; }
 .tools button.on { border-color: var(--glow); box-shadow: 0 0 10px rgba(255, 79, 216, 0.45); }
+.tools button small.short { color: #ff7a6a; }
+.tools button.locked { opacity: 0.45; cursor: default; }
+.tools button.swap { border-style: dashed; }
 kbd { font: inherit; font-size: 11px; opacity: 0.7; }
 
 .hint {
@@ -267,6 +270,7 @@ kbd { font: inherit; font-size: 11px; opacity: 0.7; }
   .tools { gap: 4px; }
   .tools button { padding: 3px 8px; font-size: 12px; }
   .tools button small, .tools kbd { display: none; }
+  .tools button.locked { display: none; }
   .icons { gap: 4px; }
   .icon { width: 30px; height: 30px; }
   .hint { display: none; }
@@ -355,3 +359,10 @@ kbd { font: inherit; font-size: 11px; opacity: 0.7; }
 @media (max-width: 760px) {
   .tree, .profile-grid, .charts { grid-template-columns: 1fr; }
 }
+
+/* --- What the next level opens --- */
+.next-unlock { margin: 10px 0 0; padding: 6px 10px; border-radius: 8px; border: 1px dashed rgba(255, 224, 102, 0.45);
+  font-size: 13px; display: flex; flex-wrap: wrap; gap: 2px 6px; align-items: baseline; }
+.next-unlock span { color: var(--muted); }
+.next-unlock strong { color: #ffe066; }
+.next-unlock small { flex-basis: 100%; color: var(--muted); font-size: 11px; }

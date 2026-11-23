@@ -215,7 +215,7 @@ describe('a real threat', () => {
     g.beetles.push({ ...newBeetle(g, m.x + 0.5, m.y + 0.5), target: idx(g, m.x, m.y), eatTimer: g.mods.eatTime * C.MOTHER_EAT_FACTOR / 2 });
     const a = underAttack(g);
     expect(a).toHaveLength(1);
-    expect(a[0].mushroom.mother).toBe(true);
+    expect(a[0].mother).toBe(true);
     expect(a[0].progress).toBeCloseTo(0.5);
   });
 

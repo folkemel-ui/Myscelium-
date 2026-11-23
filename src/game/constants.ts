@@ -66,6 +66,23 @@ export const PINE_LOGS = 8;
 export const PINE_LOG_NUTRIENTS = 60;
 export const PINE_BRIDGES = 3;
 
+// Things to build during a round (opened by player level).
+// Digest: swap spores for nutrients or nutrients for spores.
+export const DIGEST_SPORES_IN = 10;
+export const DIGEST_NUTRIENTS_OUT = 3;
+export const DIGEST_NUTRIENTS_IN = 5;
+export const DIGEST_SPORES_OUT = 8;
+// Shelf fungus: grows on a tree next to the network and makes nutrients while still touching it.
+export const SHELF_COST = 20; // nutrients
+export const SHELF_NUTRIENTS = 0.3; // a second
+// Spore tower: built on mycelium, shoots the nearest beetle in range.
+export const TOWER_NUTRIENTS = 30;
+export const TOWER_SPORES = 40;
+export const TOWER_RANGE = 6;
+export const TOWER_DAMAGE = 1;
+export const TOWER_INTERVAL = 1; // seconds between shots
+export const TOWER_EAT_FACTOR = 3; // as slow to eat as a mushroom
+
 // Hold this share of the forest floor to win.
 export const WIN_COVERAGE = 0.5;
 

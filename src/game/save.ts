@@ -4,7 +4,7 @@
 // that changed: tiles, the network, logs, mushrooms, beetles, counts, and the random number
 // generator's state, so a loaded round carries on exactly as it would have.
 import { ACHIEVEMENTS, cleanName, HISTORY_KEEP, newProfile, SCHEMES, UPGRADES, type Profile, type UpgradeId } from './progress';
-import { createLevel, DEFAULT_MODS, type Beetle, type Game, type Mods, type Mushroom } from './world';
+import { createLevel, DEFAULT_MODS, type Beetle, type Game, type Mods, type Mushroom, type Shelf, type Tower } from './world';
 
 export const SAVE_VERSION = 1;
 export const SLOT_COUNT = 3;
@@ -19,6 +19,8 @@ export interface SavedRound {
   mycelium: string; // one 0/1 per tile
   logs: [number, number][]; // [tile, nutrients left] for each log still rotting
   mushrooms: Mushroom[];
+  shelves?: Shelf[];
+  towers?: Tower[];
   beetles: Beetle[];
   spores: number;
   nutrients: number;
@@ -47,6 +49,8 @@ export function saveRound(g: Game): SavedRound {
     mycelium: Array.from(g.mycelium).join(''),
     logs,
     mushrooms: g.mushrooms.map((m) => ({ ...m })),
+    shelves: g.shelves.map((v) => ({ ...v })),
+    towers: g.towers.map((v) => ({ ...v })),
     beetles: g.beetles.map((b) => ({ ...b })),
     spores: g.spores,
     nutrients: g.nutrients,
@@ -87,6 +91,9 @@ export function loadRound(data: unknown): Game | null {
   g.mushrooms = s.mushrooms.filter((m) => isNum(m.x) && isNum(m.y)).map((m) => ({ ...m }));
   g.beetles = s.beetles.filter((b) => isNum(b.x) && isNum(b.y) && isNum(b.hp)).map((b) => ({ ...b }));
   if (!g.mushrooms.some((m) => m.mother)) return null;
+  g.shelves = (Array.isArray(s.shelves) ? s.shelves : []).filter((v) => isNum(v.x) && isNum(v.y)).map((v) => ({ ...v }));
+  g.towers = (Array.isArray(s.towers) ? s.towers : []).filter((v) => isNum(v.x) && isNum(v.y))
+    .map((v) => ({ ...v, timer: isNum(v.timer) ? v.timer : 0 }));
   Object.assign(g, {
     spores: s.spores, nutrients: s.nutrients, time: s.time, nextBeetle: s.nextBeetle, creep: s.creep,
     kills: s.kills, nextId: s.nextId, nextSample: s.nextSample,

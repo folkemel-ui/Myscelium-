@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
+import * as C from '../game/constants';
 import { WIN_COVERAGE } from '../game/constants';
 import {
-  award, buyUpgrade, finishRound, forestOpen, LEVELS, modsFor, motherTier, SCHEMES, totalXp, xpToNext, type Achievement, type Profile, type SchemeId, type UpgradeId, type XpLine,
+  award, buyUpgrade, finishRound, unlocked, UNLOCKS, type UnlockId, forestOpen, LEVELS, modsFor, motherTier, SCHEMES, totalXp, xpToNext, type Achievement, type Profile, type SchemeId, type UpgradeId, type XpLine,
 } from '../game/progress';
-import { coverage, sporesPerSecond, step, underAttack } from '../game/sim';
+import { coverage, digest, sporesPerSecond, step, underAttack } from '../game/sim';
 import { createLevel, type Game, type Mods, type RoundStats } from '../game/world';
 import { GameView, type Tool } from '../render/GameView';
 import {
@@ -49,19 +50,46 @@ const snapshot = (g: Game): Snapshot => ({
   history: g.status === 'playing' ? null : g.history.slice(),
   growCost: g.mods.growCost,
   mushroomCost: g.mods.mushroomCost,
-  motherAttacked: underAttack(g).some((a) => a.mushroom.mother),
+  motherAttacked: underAttack(g).some((a) => a.mother),
 });
 
-const TOOLS: { tool: Tool; key: string; name: string; cost: (s: Snapshot) => string }[] = [
-  { tool: 'grow', key: '1', name: 'Grow mycelium', cost: (s) => `${s.growCost} spores a tile` },
-  { tool: 'mushroom', key: '2', name: 'Grow mushroom', cost: (s) => `${s.mushroomCost} nutrients` },
+// The build bar: tools that act where you click, and swaps that happen at once. Some open with
+// the player's level; a price turns red when you can't pay it.
+interface BarItem {
+  id: string;
+  key: string;
+  name: string;
+  cost: (s: Snapshot) => string;
+  afford: (s: Snapshot) => boolean;
+  tool?: Tool; // a tool to pick; otherwise `into` is a swap done straight away
+  into?: 'nutrients' | 'spores';
+  unlock?: UnlockId;
+}
+const BAR: BarItem[] = [
+  { id: 'grow', tool: 'grow', key: '1', name: 'Grow mycelium', cost: (s) => `${s.growCost} spores a tile`, afford: (s) => s.spores >= s.growCost },
+  { id: 'mushroom', tool: 'mushroom', key: '2', name: 'Grow mushroom', cost: (s) => `${s.mushroomCost} nutrients`, afford: (s) => s.nutrients >= s.mushroomCost },
+  { id: 'shelf', tool: 'shelf', key: '3', name: 'Shelf fungus', unlock: 'shelf', cost: () => `${C.SHELF_COST} nutrients`, afford: (s) => s.nutrients >= C.SHELF_COST },
+  {
+    id: 'tower', tool: 'tower', key: '4', name: 'Spore tower', unlock: 'tower', cost: () => `${C.TOWER_NUTRIENTS} nutrients, ${C.TOWER_SPORES} spores`,
+    afford: (s) => s.nutrients >= C.TOWER_NUTRIENTS && s.spores >= C.TOWER_SPORES,
+  },
+  {
+    id: 'toNutrients', into: 'nutrients', key: '5', name: 'Digest spores', unlock: 'digest',
+    cost: () => `${C.DIGEST_SPORES_IN} spores → ${C.DIGEST_NUTRIENTS_OUT} nutrients`, afford: (s) => s.spores >= C.DIGEST_SPORES_IN,
+  },
+  {
+    id: 'toSpores', into: 'spores', key: '6', name: 'Digest nutrients', unlock: 'digest',
+    cost: () => `${C.DIGEST_NUTRIENTS_IN} nutrients → ${C.DIGEST_SPORES_OUT} spores`, afford: (s) => s.nutrients >= C.DIGEST_NUTRIENTS_IN,
+  },
 ];
+const levelOf = (id: UnlockId) => UNLOCKS.find((u) => u.id === id)!.level;
 
 // How to play on a touch screen, for the help panel there.
 const TOUCH_HELP: [string, string][] = [
   ['Drag from your network', 'Grow mycelium (Grow tool)'],
   ['Tap your mycelium', 'Grow a mushroom (Mushroom tool)'],
   ['Tap a mushroom', 'Burst it at beetles nearby'],
+  ['Tap a tree by your network', 'Grow a shelf fungus (Shelf tool)'],
   ['Pinch', 'Zoom in and out'],
   ['Drag with two fingers', 'Move the view'],
   ['Buttons at the top', 'Pause, save, main menu, help'],
@@ -75,9 +103,12 @@ const HELP: [string, string][] = [
   ['Drag from your network', 'Grow mycelium (Grow tool)'],
   ['Click your mycelium', 'Grow a mushroom (Mushroom tool)'],
   ['Click a mushroom', 'Burst it at beetles nearby'],
+  ['Click a tree by your network', 'Grow a shelf fungus (Shelf tool)'],
   ['Mouse wheel / right-drag', 'Zoom in and out / move the view'],
   ['+ / - / 0', 'Zoom in / out / show the whole forest'],
   ['1 / 2', 'Grow mycelium / Grow mushroom'],
+  ['3 / 4', `Shelf fungus (level ${levelOf('shelf')}) / Spore tower (level ${levelOf('tower')})`],
+  ['5 / 6', `Digest spores into nutrients / nutrients into spores (level ${levelOf('digest')})`],
   ['B', 'Burst the ready mushroom nearest the mouse'],
   ['Space or P', 'Pause and resume'],
   ['R', 'Restart (press twice during a round)'],
@@ -137,6 +168,15 @@ export function App() {
   if (import.meta.env.DEV) (window as unknown as { game: Game }).game = game.current;
 
   const say = (text: string) => setMessage({ text, id: Date.now() });
+  // A button or key on the build bar: pick its tool, or do its swap now.
+  const pressBar = (t: BarItem) => {
+    if (t.unlock && !unlocked(profile, t.unlock)) return say(`${t.name} opens at level ${levelOf(t.unlock)}`);
+    if (t.tool) return setTool(t.tool);
+    if (paused || game.current.status !== 'playing') return;
+    const why = digest(game.current, t.into!);
+    if (why) say(why);
+    setSnap(snapshot(game.current));
+  };
 
   useEffect(() => {
     let disposed = false;
@@ -405,8 +445,8 @@ export function App() {
         else if (key === 'f' && !e.repeat) toggleFullscreen();
         return;
       }
-      const t = TOOLS.find((t) => t.key === key);
-      if (t) return setTool(t.tool);
+      const t = BAR.find((t) => t.key === key);
+      if (t) return pressBar(t);
       if (key === ' ' || key === 'p') {
         e.preventDefault(); // Space would also press the focused button
         if (!e.repeat) togglePause();
@@ -471,12 +511,17 @@ export function App() {
           <span className="rate">{snap.kills} beaten</span>
         </div>
         <div className="tools">
-          {TOOLS.map((t) => (
-            <button key={t.tool} className={tool === t.tool ? 'on' : ''} onClick={() => setTool(t.tool)}>
-              <kbd>{t.key}</kbd> {t.name}
-              <small>{t.cost(snap)}</small>
-            </button>
-          ))}
+          {BAR.map((t) => {
+            const open = !t.unlock || unlocked(profile, t.unlock);
+            return (
+              <button key={t.id} disabled={!open} onClick={() => pressBar(t)}
+                className={[tool === t.tool ? 'on' : '', open ? '' : 'locked', t.into ? 'swap' : ''].join(' ')}
+                title={open ? `${t.name} (${t.key}): ${t.cost(snap)}` : `Opens at level ${levelOf(t.unlock!)}`}>
+                <span><kbd>{t.key}</kbd> {t.name}</span>
+                <small className={open && !t.afford(snap) ? 'short' : ''}>{open ? t.cost(snap) : `Level ${levelOf(t.unlock!)}`}</small>
+              </button>
+            );
+          })}
         </div>
         <div className="icons">
           <button className="icon" onClick={togglePause} title={paused ? 'Resume (Space)' : 'Pause (Space)'}

@@ -124,14 +124,14 @@ The game is published (https://folkemel-ui.github.io/Myscelium-/) and should pla
 - [x] **Progress charts** – Charts in the profile of your best time over the rounds and XP per round, to see yourself getting better. *(The profile keeps the last 50 rounds: a bar chart of XP each round (won rounds bright, lost dim) and a line of the best time so far in each forest; hover for the numbers.)*
 - [x] **Achievements** – About 30 badges in a grid, some hidden until earned (for example "Win without a single mushroom", "Reach stage 4 in under 3 minutes"), each giving a little XP. *(30 achievements worth 10–60 XP, 6 hidden as "???" until found; earned at the end of a round (shown with their XP) or straight away for an upgrade, a name or new colours. An achievement's XP can bring a level that earns another.)*
 
-### Pack 14 – New things to build
+### Pack 14 – New things to build ✓
 
 Each is unlocked by reaching a player level, and the menu shows what the next level brings. They sit in a
 small build menu next to the two tools (keys 3 and up), with the price in red when it can't be afforded.
 
-- [ ] **Digest (level 2)** – Turn spores into nutrients, or nutrients into spores, at a poor rate, for when you have plenty of one and need the other.
-- [ ] **Shelf fungus (level 3)** – Grows on the side of a tree next to your network and slowly makes nutrients, so trees become useful instead of only walls. Costs nutrients.
-- [ ] **Spore tower (level 5)** – A tall mushroom that shoots spores at beetles from far away, every second. Costs nutrients and spores.
+- [x] **Digest (level 2)** – Turn spores into nutrients, or nutrients into spores, at a poor rate, for when you have plenty of one and need the other. *(Two buttons, keys 5 and 6: 10 spores → 3 nutrients, 5 nutrients → 8 spores. Swapping there and back always loses spores. The menu shows what the next level opens; locked tools sit dimmed in the bar with their level, and are hidden on small screens.)*
+- [x] **Shelf fungus (level 3)** – Grows on the side of a tree next to your network and slowly makes nutrients, so trees become useful instead of only walls. Costs nutrients. *(Key 3, 20 nutrients, on a tree touching your mycelium: 0.3 nutrients a second (pays for itself in about a minute). It only feeds while the network still touches its tree; if beetles cut it off, it turns grey and waits until you grow back. Drawn as three amber brackets on the side of the tree that faces the network, breathing while it feeds.)*
+- [x] **Spore tower (level 5)** – A tall mushroom that shoots spores at beetles from far away, every second. Costs nutrients and spores. *(Key 4, 30 nutrients and 40 spores, on your mycelium: 1 damage a second to the nearest beetle within 6 tiles. A tall pale stalk with a glowing spore sac that swells as it fires a bolt. Beetles take as long to eat it as a mushroom, and those that hunt mushrooms hunt towers too; eaten, it is gone. Saves keep shelves and towers.)*
 
 ### Pack 15 – A styled panel
 

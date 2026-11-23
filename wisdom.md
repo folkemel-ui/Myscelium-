@@ -143,5 +143,12 @@ Things learned while building Mycelium that are worth knowing before the next ch
   them when it draws, so a scheme must be set before a round's drawing is built.
 - A CSS rule for a class name can reach SVG shapes with that class: `.bar { height: 8px }` (the
   panel's progress bar) squashed the chart's bars until they got their own class name.
+- Things the player builds (shelves, towers) live in their own lists on the game, and anything
+  that removes mycelium must remove what stands on it (`removeMycelium` in sim.ts). New lists
+  need a default in `loadRound` so older saves still load.
+- Player-level unlocks are checked in the UI only (`unlocked` in progress.ts); the rules let
+  anything be built, which keeps the rules' tests simple.
+- A bash heredoc holding JS with backticks and `${}` broke in this shell; write patch scripts
+  with the Write tool instead.
 - Enemies need a way to leave. Before beetles got full and walked off, they piled up to 195 on
   one map.
