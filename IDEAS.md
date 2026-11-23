@@ -137,6 +137,25 @@ small build menu next to the two tools (keys 3 and up), with the price in red wh
 
 - [x] **Styled panel** – A glowing, organic top panel with icons for spores, nutrients and beetles instead of plain text. *(A dark violet pod with uneven, grown-looking corners, faint wandering threads as its texture, and a border that slowly breathes between the scheme's two glow colours. Each counter has its own icon in a small round pod: a clock, a cluster of glowing spores (gently pulsing), a gold nutrient drop (the number in gold too), the mother's pink cap for the forest held, and a beetle. The goal bar is a glowing thread with a bright, pulsing tip, and the held share is shown big ("Forest held **31%** of 50%"). While a beetle is eating a mushroom or tower, the beetle pod glows red and blinks. Tools and round buttons got softer, uneven corners. Everything follows the chosen colour scheme (Ocean turns it cyan). On small screens the icons replace the labels, so the panel still fits one row on a phone held sideways (844×390).)*
 
+### Pack 16 – Full screen on the phone
+
+In Safari the address bar and tabs always show, and Safari won't let a page hide them; started from the
+Home Screen the game fills the whole screen. These make that easy and safe.
+
+- [ ] **Install prompt** – Opened in Safari on an iPhone, the game shows a small card once: "Add to Home Screen for full screen", with the three steps (Share → Add to Home Screen → Add) and a "Don't show again" button.
+- [ ] **Bring your progress along** – The Home Screen copy keeps its own storage and starts on an empty profile. Offer "Load a backup" there, or better, a short code to copy in Safari and paste into the app version.
+- [ ] **Notch and rounded corners** – In full screen held sideways, keep the panel, buttons and messages clear of the notch and the home bar on both sides.
+- [ ] **Works offline** – Keep the game stored on the phone so it loads with no signal and the Home Screen app starts faster.
+
+### Pack 17 – Made for thumbs
+
+- [ ] **Bigger buttons on phones** – Tools and icons at least 44 px to touch (Apple's guideline), instead of about 30 px now.
+- [ ] **Tool bar within reach** – On a phone the tools move to a strip along the bottom or a side, where thumbs reach; the top keeps only the numbers.
+- [ ] **Tool icons** – Small pictures for grow, mushroom, shelf, tower and digest, with the price as a tiny number, so the bar fits in one row and reads at a glance.
+- [ ] **Long-press for info** – Hold a finger on a tile, mushroom, tower or beetle to see what it is, its health and its cooldown (phones have no hover).
+- [ ] **Burst-all button** – One button bursts every ready mushroom near beetles, since tapping small mushrooms mid-fight is hard.
+- [ ] **Text size** – The panel's small text (10–11 px now) a bit bigger and bolder on a phone held sideways.
+
 ## Later (not in a pack yet)
 
 - Infected beetles and squirrels that join your side and attack.
