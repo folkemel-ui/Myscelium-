@@ -7,14 +7,14 @@
 // legs, jaws and antennae are redrawn each frame.
 import { Container, Graphics, Sprite, Texture } from 'pixi.js';
 import { DOT_SIZE, dotTexture } from './textures';
-import { BEETLE_HP, BURST_COOLDOWN } from '../game/constants';
+import { BEETLE_HP } from '../game/constants';
 import { underAttack } from '../game/sim';
 import type { Game, Mushroom, Puff } from '../game/world';
 import {
   flip, FLASH_TIME, legSwing, moveParticle, sparkleAt, SPARKLE_TIME, sporeBurst, sproutScale, squashScale,
   type Particle,
 } from './anim';
-import { GLOW, glowAt, hash, TS } from './forestLayout';
+import { GLOW, glowAt, hash, PALETTE, TS } from './forestLayout';
 
 const SMALL_SPORES = [0xd8ff7a, 0xeaffb0, 0xb6ff4f];
 const SPARKLES = [0xffe066, 0xd8ff6a, 0xfff3b0];
@@ -64,6 +64,7 @@ export class CreatureView {
   private corpses: { root: Container; parts: BeetleParts; start: number; x: number; y: number; angle: number }[] = [];
   private flying: { from: Point; start: number; lift: number; color: number }[] = [];
   private fresh = true; // the first look at a game: what's there already doesn't sprout
+  motherTier = 0; // how grand the mother looks (0..5), from the player's level
 
   constructor() {
     this.halos.blendMode = 'add';
@@ -107,9 +108,9 @@ export class CreatureView {
       if (!s) {
         const halo = new Sprite(dotTexture());
         halo.anchor.set(0.5);
-        halo.tint = m.mother ? 0xff3d7f : glowAt(g.noise[m.y * g.w + m.x]);
+        halo.tint = m.mother ? PALETTE.mother : glowAt(g.noise[m.y * g.w + m.x]);
         this.halos.addChild(halo);
-        s = { shape: mushroomShape(g, m), halo, born: this.fresh ? -Infinity : clock, burst: -Infinity };
+        s = { shape: mushroomShape(g, m, this.motherTier), halo, born: this.fresh ? -Infinity : clock, burst: -Infinity };
         this.shrooms.set(m.id, s);
         this.mushroomLayer.addChild(s.shape);
       }
@@ -138,11 +139,11 @@ export class CreatureView {
       const cy = (m.y + 0.5) * TS;
       if (m.mother) {
         const pulse = 0.5 + 0.5 * Math.sin(clock * 2.2);
-        under.circle(cx, cy, TS * (0.9 + 0.15 * pulse)).fill({ color: 0xff3d7f, alpha: 0.1 + 0.06 * pulse });
+        under.circle(cx, cy, TS * (0.9 + 0.15 * pulse)).fill({ color: PALETTE.mother, alpha: 0.1 + 0.06 * pulse });
       }
       if (m.cooldown > 0) {
         const r = m.mother ? 17 : 12;
-        const done = 1 - m.cooldown / BURST_COOLDOWN;
+        const done = 1 - m.cooldown / g.mods.burstCooldown;
         under.moveTo(cx, cy - r).arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + done * Math.PI * 2)
           .stroke({ width: 2, color: 0xffffff, alpha: 0.55 });
       }
@@ -342,12 +343,22 @@ export class CreatureView {
 // A mushroom seen from a little above and the side, with its stem's foot at (0, 0). Caps come in
 // three shapes (a round dome, a wide flat cap, a tall cone) and sizes from 0.85 to 1.15; the
 // mother is a big spotted dome with a frilly ring on her stem.
-function mushroomShape(g: Game, m: Mushroom) {
+function mushroomShape(g: Game, m: Mushroom, tier = 0) {
   const s = new Graphics();
   const tile = m.y * g.w + m.x;
   const kind = m.mother ? 0 : Math.floor(hash(g, tile, 200) * 3);
-  const k = m.mother ? 1.55 : 0.85 + 0.3 * hash(g, tile, 201);
-  const cap = m.mother ? 0xff3d7f : glowAt(g.noise[tile]);
+  // The mother grows grander with the player's level: a little bigger at every step.
+  const k = m.mother ? 1.55 * (1 + 0.06 * tier) : 0.85 + 0.3 * hash(g, tile, 201);
+  const cap = m.mother ? PALETTE.mother : glowAt(g.noise[tile]);
+  if (m.mother && tier >= 4) {
+    // Two baby mushrooms at her foot.
+    for (const [bx, by, bc] of [[-8, 1, 0], [8.5, 2, 1]]) {
+      const c = GLOW[bc + 1];
+      s.roundRect((bx - 1) * 1.1, (by - 4) * 1.1, 2.2, 4.4, 1).fill(0xf3e6c8);
+      s.ellipse(bx * 1.1, (by - 4.2) * 1.1, 3.4, 2.4).fill(c);
+      s.circle((bx - 1) * 1.1, (by - 4.8) * 1.1, 0.6).fill({ color: 0xffffff, alpha: 0.85 });
+    }
+  }
   const stem = 0xf3e6c8;
   const gill = shade(cap, 0.45);
 
@@ -377,6 +388,7 @@ function mushroomShape(g: Game, m: Mushroom) {
     for (const [x, y, r] of [[-4.5, -12, 1.3], [2.5, -15.5, 1.5], [5.5, -11.5, 1.1], [-0.5, -11, 1], [-6, -14.5, 0.9]]) {
       s.circle(x * k, y * k, r * k).fill({ color: 0xffffff, alpha: 0.85 });
     }
+    if (m.mother) motherMarkings(s, k, tier);
   } else if (kind === 1) {
     s.moveTo(-11 * k, -8 * k).bezierCurveTo(-10 * k, -14.5 * k, 10 * k, -14.5 * k, 11 * k, -8 * k)
       .quadraticCurveTo(0, -6.2 * k, -11 * k, -8 * k).fill(cap).stroke({ width: 1, color: shade(cap, 0.6), alpha: 0.8 });
@@ -401,6 +413,36 @@ function mushroomShape(g: Game, m: Mushroom) {
 
 // A beetle from above, facing +x, in parts: limbs (legs, antennae, jaws) redrawn every frame, and a
 // shell, a white flash and cracks that are drawn once and only shown, hidden or faded.
+// The mother's markings as the player levels up: more spots (step 1), a golden rim (2), glowing
+// stripes (3), and a crown of little lights (5). (Step 4, her babies, is drawn with her stem.)
+function motherMarkings(s: Graphics, k: number, tier: number) {
+  if (tier >= 1) {
+    for (let a = 0; a < 7; a++) {
+      const t = 0.15 + (a / 6) * 0.7;
+      s.circle((-8 + 16 * t) * k, (-10.6 - Math.sin(t * Math.PI) * 1.2) * k, 0.5 * k).fill({ color: 0xffffff, alpha: 0.8 });
+    }
+  }
+  if (tier >= 2) {
+    s.moveTo(-9 * k, -10 * k).bezierCurveTo(-9 * k, -20 * k, 9 * k, -20 * k, 9 * k, -10 * k)
+      .stroke({ width: 1.3, color: 0xffd36b, alpha: 0.95 });
+  }
+  if (tier >= 3) {
+    for (const x of [-5, 0, 5]) {
+      s.moveTo(x * k, -10.5 * k).quadraticCurveTo((x * 0.7) * k, -15 * k, (x * 0.4) * k, -17.5 * k);
+    }
+    s.stroke({ width: 0.9, color: 0xfff0f8, alpha: 0.55 });
+  }
+  if (tier >= 5) {
+    for (let a = 0; a < 5; a++) {
+      const t = (a / 4 - 0.5) * 1.6;
+      const x = Math.sin(t) * 10 * k;
+      const y = (-17 - Math.cos(t) * 4) * k;
+      s.circle(x, y, 1.6 * k).fill({ color: 0xfff3b0, alpha: 0.3 });
+      s.circle(x, y, 0.7 * k).fill({ color: 0xffffff, alpha: 0.95 });
+    }
+  }
+}
+
 interface BeetleParts {
   root: Container;
   limbs: Graphics;

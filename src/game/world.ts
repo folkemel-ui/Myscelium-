@@ -51,6 +51,13 @@ export interface Mods {
   creep: number; // tiles a second the network creeps out on its own
   eatTime: number; // seconds a beetle takes to eat a tile
   startSpores: number;
+  burstCooldown: number; // seconds before a mushroom can burst again
+  motherPuffInterval: number; // seconds between the mother's puffs
+  motherPuffRange: number; // tiles
+  rotSpeed: number; // nutrients a second from a covered log
+  beetleNutrients: number; // from each beaten beetle
+  mushroomCost: number; // nutrients
+  startPatch: number; // the mother's patch reaches this many tiles out (1: 5 tiles, 2: 13)
 }
 
 export const DEFAULT_MODS: Mods = {
@@ -61,6 +68,13 @@ export const DEFAULT_MODS: Mods = {
   creep: C.CREEP_PER_SECOND,
   eatTime: C.BEETLE_EAT_TIME,
   startSpores: C.START_SPORES,
+  burstCooldown: C.BURST_COOLDOWN,
+  motherPuffInterval: C.PUFF_INTERVAL,
+  motherPuffRange: C.PUFF_RANGE,
+  rotSpeed: C.ROT_PER_SECOND,
+  beetleNutrients: C.BEETLE_NUTRIENTS,
+  mushroomCost: C.MUSHROOM_COST,
+  startPatch: 1,
 };
 
 // What a level does differently: when and how beetles come.
@@ -99,6 +113,9 @@ export interface RoundStats {
   mushrooms: number; // mushrooms grown (not counting the mother)
   bursts: number; // mushrooms burst by clicking
   peakSpores: number; // the most spores a second
+  mushroomsLost: number; // mushrooms eaten by beetles (not counting the mother)
+  motherBitten: boolean; // a beetle started eating the mother
+  threeQuartersAt: number | null; // when the share held first reached 3/4 of the goal
 }
 
 // Things that happened, for the drawing to show (a flash, a beetle flipping over). The view takes
@@ -216,7 +233,7 @@ function finishLevel(p: {
     kills: 0,
     history: [],
     nextSample: 0,
-    stats: { grown: 0, mushrooms: 0, bursts: 0, peakSpores: 0 },
+    stats: { grown: 0, mushrooms: 0, bursts: 0, peakSpores: 0, mushroomsLost: 0, motherBitten: false, threeQuartersAt: null },
     nextId: 1,
     version: 0,
     rng,
@@ -225,14 +242,19 @@ function finishLevel(p: {
     biome: p.biome,
     rules: p.rules,
   };
-  // The mother mushroom and a small patch of mycelium around her.
-  for (const [dx, dy] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) {
-    const i = idx(g, mx + dx, my + dy);
-    tiles[i] = TILE.SOIL;
-    g.mycelium[i] = 1;
+  // The mother mushroom and a patch of mycelium around her: the tiles up to startPatch steps away
+  // (5 tiles, or 13 with Deep roots).
+  const reach = mods.startPatch;
+  for (let dy = -reach; dy <= reach; dy++) {
+    for (let dx = -reach; dx <= reach; dx++) {
+      if (Math.abs(dx) + Math.abs(dy) > reach || !inside(g, mx + dx, my + dy)) continue;
+      const i = idx(g, mx + dx, my + dy);
+      if (tiles[i] !== TILE.LOG && tiles[i] !== TILE.BRIDGE) tiles[i] = TILE.SOIL;
+      g.mycelium[i] = 1;
+    }
   }
   for (let i = 0; i < n; i++) if (canHoldMycelium(tiles[i])) g.growable++;
-  g.covered = 5;
+  g.covered = g.mycelium.reduce((s, v) => s + v, 0);
   g.history.push({ t: 0, held: g.covered / g.growable });
   g.nextSample = HISTORY_EVERY;
   g.mushrooms.push({ id: g.nextId++, x: mx, y: my, mother: true, puffTimer: 0, cooldown: 0 });

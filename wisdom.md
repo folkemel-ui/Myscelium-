@@ -136,5 +136,12 @@ Things learned while building Mycelium that are worth knowing before the next ch
 - Touch can be tested in the browser pane by dispatching `PointerEvent`s with `pointerType:
   'touch'` on the canvas (Pixi handles them like real fingers).
 - In a hidden pane `requestAnimationFrame` may never run: a script that awaits it times out.
+- The profile grows with every pack; `loadProfile` in save.ts must fill every new part for older
+  profiles (Pack 13 added name, scheme, records, history, totals and achievements) – the save tests
+  check an old profile loads.
+- Colour schemes change `GLOW` in place and `PALETTE.mother` (forestLayout.ts); everything reads
+  them when it draws, so a scheme must be set before a round's drawing is built.
+- A CSS rule for a class name can reach SVG shapes with that class: `.bar { height: 8px }` (the
+  panel's progress bar) squashed the chart's bars until they got their own class name.
 - Enemies need a way to leave. Before beetles got full and walked off, they piled up to 195 on
   one map.

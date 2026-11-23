@@ -34,6 +34,7 @@ function removeMycelium(g: Game, i: number) {
   const k = g.mushrooms.findIndex((m) => idx(g, m.x, m.y) === i);
   if (k >= 0) {
     if (g.mushrooms[k].mother) g.status = 'lost';
+    else g.stats.mushroomsLost++;
     g.mushrooms.splice(k, 1);
   }
 }
@@ -58,8 +59,8 @@ export function plantMushroom(g: Game, x: number, y: number): string | null {
   if (!inside(g, x, y) || !g.mycelium[idx(g, x, y)]) return 'Mushrooms grow on your mycelium';
   if (g.tiles[idx(g, x, y)] === TILE.LOG) return 'This log is still rotting';
   if (mushroomAt(g, x, y)) return 'There is a mushroom here already';
-  if (g.nutrients < C.MUSHROOM_COST) return `A mushroom costs ${C.MUSHROOM_COST} nutrients`;
-  g.nutrients -= C.MUSHROOM_COST;
+  if (g.nutrients < g.mods.mushroomCost) return `A mushroom costs ${g.mods.mushroomCost} nutrients`;
+  g.nutrients -= g.mods.mushroomCost;
   g.stats.mushrooms++;
   g.mushrooms.push({ id: g.nextId++, x, y, mother: false, puffTimer: C.PUFF_INTERVAL, cooldown: 0 });
   return null;
@@ -70,7 +71,7 @@ export function burst(g: Game, x: number, y: number): string | null {
   const m = mushroomAt(g, x, y);
   if (!m) return 'Click a mushroom to burst it';
   if (m.cooldown > 0) return `Ready again in ${Math.ceil(m.cooldown)} s`;
-  m.cooldown = C.BURST_COOLDOWN;
+  m.cooldown = g.mods.burstCooldown;
   g.stats.bursts++;
   sporeCloud(g, m.x + 0.5, m.y + 0.5, g.mods.burstRange, g.mods.burstDamage, true);
   return null;
@@ -109,8 +110,8 @@ export function step(g: Game, dt: number) {
   for (const b of g.beetles) {
     if (b.hp > 0) continue;
     g.kills++;
-    g.nutrients += C.BEETLE_NUTRIENTS;
-    tell(g, { kind: 'defeat', beetle: b.id, x: b.x, y: b.y, nutrients: C.BEETLE_NUTRIENTS });
+    g.nutrients += g.mods.beetleNutrients;
+    tell(g, { kind: 'defeat', beetle: b.id, x: b.x, y: b.y, nutrients: g.mods.beetleNutrients });
   }
   // Full beetles that have walked off the map are gone.
   g.beetles = alive.filter((b) => b.x > -1 && b.y > -1 && b.x < g.w + 1 && b.y < g.h + 1);
@@ -118,6 +119,7 @@ export function step(g: Game, dt: number) {
   if (g.status === 'playing' && coverage(g) >= C.WIN_COVERAGE) g.status = 'won';
 
   g.stats.peakSpores = Math.max(g.stats.peakSpores, sporesPerSecond(g));
+  if (g.stats.threeQuartersAt === null && coverage(g) >= C.WIN_COVERAGE * 0.75) g.stats.threeQuartersAt = g.time;
   if (g.time >= g.nextSample || g.status !== 'playing') {
     g.history.push({ t: g.time, held: coverage(g) });
     g.nextSample += C.HISTORY_EVERY;
@@ -143,7 +145,7 @@ export function nearestReadyMushroom(g: Game, x: number, y: number): Mushroom | 
 function rotLogs(g: Game, dt: number) {
   for (let i = 0; i < g.tiles.length; i++) {
     if (g.tiles[i] !== TILE.LOG || !g.mycelium[i]) continue;
-    const taken = Math.min(g.logNutrients[i], C.ROT_PER_SECOND * dt);
+    const taken = Math.min(g.logNutrients[i], g.mods.rotSpeed * dt);
     g.logNutrients[i] -= taken;
     g.nutrients += taken;
     if (g.logNutrients[i] <= 0) {
@@ -286,6 +288,7 @@ function moveBeetle(g: Game, b: Beetle, dt: number) {
     return;
   }
   b.eatTimer += dt;
+  if (!g.stats.motherBitten && g.mushrooms.some((m) => m.mother && idx(g, m.x, m.y) === b.target)) g.stats.motherBitten = true;
   if (b.eatTimer >= eatTimeFor(g, b.target)) {
     removeMycelium(g, b.target);
     b.ate++;
@@ -310,8 +313,9 @@ function mushroomsPuff(g: Game, dt: number) {
     if (m.puffTimer > 0) continue;
     const cx = m.x + 0.5;
     const cy = m.y + 0.5;
-    if (!g.beetles.some((b) => b.hp > 0 && Math.hypot(b.x - cx, b.y - cy) <= C.PUFF_RANGE)) continue;
-    m.puffTimer = C.PUFF_INTERVAL;
-    sporeCloud(g, cx, cy, C.PUFF_RANGE, C.PUFF_DAMAGE, false);
+    const range = m.mother ? g.mods.motherPuffRange : C.PUFF_RANGE;
+    if (!g.beetles.some((b) => b.hp > 0 && Math.hypot(b.x - cx, b.y - cy) <= range)) continue;
+    m.puffTimer = m.mother ? g.mods.motherPuffInterval : C.PUFF_INTERVAL;
+    sporeCloud(g, cx, cy, range, C.PUFF_DAMAGE, false);
   }
 }

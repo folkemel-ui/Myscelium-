@@ -1,7 +1,7 @@
 // A small picture of a round for its save slot: the forest floor, trees and rocks, the network in
 // its glow colours and the mushrooms, a couple of pixels per tile.
 import { TILE, type Game } from '../game/world';
-import { glowAt } from './forestLayout';
+import { glowAt, PALETTE } from './forestLayout';
 
 const PX = 2; // pixels per tile
 
@@ -24,7 +24,7 @@ export function thumbnail(g: Game): string {
       ctx.fillRect(x, y, PX, PX);
     }
     for (const m of g.mushrooms) {
-      ctx.fillStyle = m.mother ? '#ff3d7f' : '#ffffff';
+      ctx.fillStyle = m.mother ? hex(PALETTE.mother) : '#ffffff';
       const r = m.mother ? 2 : 1;
       ctx.fillRect(m.x * PX + 1 - r, m.y * PX + 1 - r, r * 2, r * 2);
     }

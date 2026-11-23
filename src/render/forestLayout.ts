@@ -199,4 +199,12 @@ export function lightAt(s: LightSpot, t: number, width: number, height: number) 
 
 // The psychedelic colours the mycelium (and its mushrooms) glow in, picked per tile.
 export const GLOW = [0xff4fd8, 0x4ff3ff, 0xb6ff4f, 0xffb84f, 0x9d6bff];
+
+// The player's colour scheme: the five glow colours above are changed in place (everything that
+// uses them reads them as it draws), and the mother's colour. Set before a round's drawing is made.
+export const PALETTE = { mother: 0xff3d7f };
+export function applyScheme(glow: number[], mother: number) {
+  GLOW.splice(0, GLOW.length, ...glow);
+  PALETTE.mother = mother;
+}
 export const glowAt = (noise: number) => GLOW[Math.floor(noise * GLOW.length) % GLOW.length];

@@ -1,5 +1,7 @@
 import { useRef, useState } from 'react';
-import { forestOpen, LEVELS, rank, UPGRADES, xpToNext, type Profile, type UpgradeId } from '../game/progress';
+import {
+  BRANCHES, branchPoints, canBuy, forestOpen, LEVELS, rank, UPGRADES, xpToNext, type Profile, type UpgradeId,
+} from '../game/progress';
 import type { SavedRound, SlotSave } from '../game/save';
 import { SlotCard } from './SaveDialog';
 import { formatTime } from './SpreadChart';
@@ -15,6 +17,7 @@ interface MenuProps {
   onDeleteSlot: (n: number) => void;
   onBackup: () => void;
   onRestore: (text: string) => string | null; // a reason if the file was not a backup
+  onOpenProfile: () => void;
 }
 
 // The main menu: the player's profile, the forests to play, saved rounds, and upgrades.
@@ -33,7 +36,13 @@ export function MainMenu(p: MenuProps) {
 
         <div className="menu-grid">
           <section className="profile" aria-label="Your profile">
-            <div className="level-badge"><small>Level</small>{profile.level}</div>
+            <div className="profile-top">
+              <div className="level-badge"><small>Level</small>{profile.level}</div>
+              <div className="who">
+                <strong>{profile.name || 'Your fungus'}</strong>
+                <button className="secondary" onClick={p.onOpenProfile}>View profile</button>
+              </div>
+            </div>
             <div className="xp">
               <div className="xp-text"><span>{profile.xp} / {need} XP</span><span>to level {profile.level + 1}</span></div>
               <div className="bar"><div style={{ width: `${(profile.xp / need) * 100}%` }} /></div>
@@ -91,29 +100,49 @@ export function MainMenu(p: MenuProps) {
               {profile.points === 1 ? '1 point to spend' : `${profile.points} points to spend`}
             </span>
           </h2>
-          <div className="upgrade-grid">
-            {UPGRADES.map((u) => {
-              const r = rank(profile, u.id);
-              const maxed = r >= u.max;
-              return (
-                <div key={u.id} className={`upgrade${maxed ? ' maxed' : ''}`}>
-                  <div className="upgrade-top">
-                    <strong>{u.name}</strong>
-                    <span className="pips" aria-label={`Rank ${r} of ${u.max}`}>
-                      {Array.from({ length: u.max }, (_, k) => <i key={k} className={k < r ? 'on' : ''} />)}
-                    </span>
-                  </div>
-                  <small>{maxed ? 'Fully grown' : u.about(r)}</small>
-                  <button disabled={maxed || profile.points < 1} onClick={() => p.onBuy(u.id)}>
-                    {maxed ? 'Max' : 'Upgrade · 1 point'}
-                  </button>
+          <div className="tree">
+            {BRANCHES.map((br) => (
+              <div key={br.id} className={`branch ${br.id}`}>
+                <div className="branch-head">
+                  <strong>{br.name}</strong>
+                  <small>{br.about} · {branchPoints(profile, br.id) === 1 ? '1 point' : `${branchPoints(profile, br.id)} points`}</small>
                 </div>
-              );
-            })}
+                {[1, 2, 3].map((tier) => (
+                  <div key={tier} className={`tier tier${tier}`}>
+                    {UPGRADES.filter((u) => u.branch === br.id && u.tier === tier).map((u) => (
+                      <UpgradeCard key={u.id} id={u.id} profile={profile} onBuy={p.onBuy} />
+                    ))}
+                  </div>
+                ))}
+              </div>
+            ))}
           </div>
         </section>
         <p className="menu-foot">Points come from levelling up. Upgrades last for every round. Press Enter to play.</p>
       </div>
+    </div>
+  );
+}
+
+// One upgrade in the tree: its ranks, what the next one does, and why it can't be bought yet.
+function UpgradeCard({ id, profile, onBuy }: { id: UpgradeId; profile: Profile; onBuy: (id: UpgradeId) => void }) {
+  const u = UPGRADES.find((x) => x.id === id)!;
+  const r = rank(profile, id);
+  const maxed = r >= u.max;
+  const buy = canBuy(profile, id);
+  const locked = !maxed && !buy.ok && buy.why !== 'No points to spend';
+  return (
+    <div className={`upgrade${maxed ? ' maxed' : ''}${locked ? ' locked' : ''}${u.tier === 3 ? ' capstone' : ''}`}>
+      <div className="upgrade-top">
+        <strong>{u.name}</strong>
+        <span className="pips" aria-label={`Rank ${r} of ${u.max}`}>
+          {Array.from({ length: u.max }, (_, k) => <i key={k} className={k < r ? 'on' : ''} />)}
+        </span>
+      </div>
+      <small>{maxed ? 'Fully grown' : u.about(r)}</small>
+      <button disabled={!buy.ok} onClick={() => onBuy(id)}>
+        {maxed ? 'Max' : locked ? buy.why : 'Upgrade · 1 point'}
+      </button>
     </div>
   );
 }

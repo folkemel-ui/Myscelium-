@@ -76,6 +76,15 @@ describe('the profile', () => {
     });
   });
 
+  test('a profile from before Pack 13 gets the new parts fresh, keeping what it had', () => {
+    const old = { level: 4, xp: 30, points: 2, upgrades: { strongBurst: 2 }, rounds: 9, wins: 5, bestTime: 170, forestsWon: [1], bestTimes: { 1: 170 } };
+    const p = loadProfile(old);
+    expect(p).toMatchObject({ level: 4, points: 2, upgrades: { strongBurst: 2 }, name: '', scheme: 'rose', achievements: [], history: [] });
+    expect(p.records.mostKills).toBe(0);
+    expect(loadProfile({ ...old, name: '  A   very long name for a fungus indeed  ', scheme: 'nonsense', achievements: ['firstWin', 'made-up'] }))
+      .toMatchObject({ name: 'A very long name for a f', scheme: 'rose', achievements: ['firstWin'] });
+  });
+
   test('broken JSON in storage gives a fresh profile', () => {
     const store = memoryStore();
     store.set(KEYS.profile, '{not json');

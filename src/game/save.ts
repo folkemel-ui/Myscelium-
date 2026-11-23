@@ -3,7 +3,7 @@
 // A saved round keeps the level's seed and remakes the level from it, then puts back everything
 // that changed: tiles, the network, logs, mushrooms, beetles, counts, and the random number
 // generator's state, so a loaded round carries on exactly as it would have.
-import { newProfile, UPGRADES, type Profile, type UpgradeId } from './progress';
+import { ACHIEVEMENTS, cleanName, HISTORY_KEEP, newProfile, SCHEMES, UPGRADES, type Profile, type UpgradeId } from './progress';
 import { createLevel, DEFAULT_MODS, type Beetle, type Game, type Mods, type Mushroom } from './world';
 
 export const SAVE_VERSION = 1;
@@ -118,6 +118,7 @@ export function loadProfile(data: unknown): Profile {
     wins: whole(p.wins, 0) ?? 0,
     bestTime: isNum(p.bestTime) && p.bestTime > 0 ? p.bestTime : null,
     ...forestRecords(p),
+    ...deeperProfile(p),
   };
 }
 
@@ -134,6 +135,34 @@ function forestRecords(p: Partial<Profile>): Pick<Profile, 'forestsWon' | 'bestT
   }
   if (bestTimes[1] === undefined && isNum(p.bestTime) && p.bestTime > 0) bestTimes[1] = p.bestTime;
   return { forestsWon: [...won].sort(), bestTimes };
+}
+
+// The name, colours, records, history, totals and achievements (from Pack 13; older profiles
+// have none and start them fresh).
+function deeperProfile(p: Partial<Profile>): Pick<Profile, 'name' | 'scheme' | 'records' | 'history' | 'totals' | 'achievements'> {
+  const fresh = newProfile();
+  const num = (v: unknown, fallback: number) => (isNum(v) && v >= 0 ? v : fallback);
+  const r = (p.records ?? {}) as Partial<Profile['records']>;
+  const t = (p.totals ?? {}) as Partial<Profile['totals']>;
+  return {
+    name: typeof p.name === 'string' ? cleanName(p.name) : '',
+    scheme: SCHEMES.some((s) => s.id === p.scheme) ? p.scheme! : 'rose',
+    records: {
+      mostKills: num(r.mostKills, 0),
+      mostSpores: num(r.mostSpores, 0),
+      mostMushrooms: num(r.mostMushrooms, 0),
+      fewestHandWin: isNum(r.fewestHandWin) ? r.fewestHandWin : null,
+    },
+    history: Array.isArray(p.history)
+      ? p.history.filter((h) => h && isNum(h.time) && isNum(h.xp)).slice(-HISTORY_KEEP).map((h) => ({
+        forest: h.forest === 2 ? 2 : 1, won: !!h.won, time: h.time, held: num(h.held, 0), kills: num(h.kills, 0), xp: h.xp, at: num(h.at, 0),
+      }))
+      : fresh.history,
+    totals: {
+      kills: num(t.kills, 0), grown: num(t.grown, 0), mushrooms: num(t.mushrooms, 0), bursts: num(t.bursts, 0), time: num(t.time, 0),
+    },
+    achievements: Array.isArray(p.achievements) ? p.achievements.filter((a) => ACHIEVEMENTS.some((x) => x.id === a)) : [],
+  };
 }
 
 // --- Where saves are kept ---

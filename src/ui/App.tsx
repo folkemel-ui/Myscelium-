@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { MUSHROOM_COST, WIN_COVERAGE } from '../game/constants';
+import { WIN_COVERAGE } from '../game/constants';
 import {
-  buyUpgrade, finishRound, forestOpen, LEVELS, modsFor, totalXp, xpToNext, type Profile, type UpgradeId, type XpLine,
+  award, buyUpgrade, finishRound, forestOpen, LEVELS, modsFor, motherTier, SCHEMES, totalXp, xpToNext, type Achievement, type Profile, type SchemeId, type UpgradeId, type XpLine,
 } from '../game/progress';
 import { coverage, sporesPerSecond, step, underAttack } from '../game/sim';
 import { createLevel, type Game, type Mods, type RoundStats } from '../game/world';
@@ -12,7 +12,9 @@ import {
 } from '../game/save';
 import { thumbnail } from '../render/thumbnail';
 import { STAGES } from '../render/trip';
+import { applyScheme } from '../render/forestLayout';
 import { MainMenu } from './MainMenu';
+import { ProfilePanel } from './ProfilePanel';
 import { SaveDialog } from './SaveDialog';
 import { formatTime, SpreadChart } from './SpreadChart';
 
@@ -30,6 +32,7 @@ interface Snapshot {
   stats: RoundStats;
   history: Game['history'] | null; // only once the round is over, for the chart
   growCost: number;
+  mushroomCost: number;
   motherAttacked: boolean;
 }
 
@@ -45,12 +48,13 @@ const snapshot = (g: Game): Snapshot => ({
   stats: { ...g.stats },
   history: g.status === 'playing' ? null : g.history.slice(),
   growCost: g.mods.growCost,
+  mushroomCost: g.mods.mushroomCost,
   motherAttacked: underAttack(g).some((a) => a.mushroom.mother),
 });
 
 const TOOLS: { tool: Tool; key: string; name: string; cost: (s: Snapshot) => string }[] = [
   { tool: 'grow', key: '1', name: 'Grow mycelium', cost: (s) => `${s.growCost} spores a tile` },
-  { tool: 'mushroom', key: '2', name: 'Grow mushroom', cost: () => `${MUSHROOM_COST} nutrients` },
+  { tool: 'mushroom', key: '2', name: 'Grow mushroom', cost: (s) => `${s.mushroomCost} nutrients` },
 ];
 
 // How to play on a touch screen, for the help panel there.
@@ -97,6 +101,8 @@ interface Summary {
   after: Profile;
   levelsGained: number;
   opened: string | null; // a forest this round opened
+  newRecords: string[];
+  earned: Achievement[];
 }
 
 export function App() {
@@ -175,6 +181,7 @@ export function App() {
     if (!view.current) return;
     view.current.tool = tool;
     view.current.frozen = paused || help || saving || screen === 'menu';
+    view.current.creatures.motherTier = motherTier(profile.level);
   }, [tool, paused, help, saving, screen, snap]);
 
   // The profile is kept for good, whenever it changes.
@@ -209,9 +216,14 @@ export function App() {
     if (snap.status === 'playing' || screen !== 'game' || awarded.current === game.current) return;
     awarded.current = game.current;
     const g = game.current;
-    const result = finishRound(profile, { forest: g.level, won: g.status === 'won', held: coverage(g), kills: g.kills, time: g.time });
+    const result = finishRound(profile, {
+      forest: g.level, won: g.status === 'won', held: coverage(g), kills: g.kills, time: g.time, stats: { ...g.stats },
+    });
     const opened = LEVELS.find((l) => !forestOpen(profile, l) && forestOpen(result.profile, l))?.name ?? null;
-    setSummary({ lines: result.lines, before: profile, after: result.profile, levelsGained: result.levelsGained, opened });
+    setSummary({
+      lines: result.lines, before: profile, after: result.profile, levelsGained: result.levelsGained, opened,
+      newRecords: result.newRecords, earned: result.earned,
+    });
     setProfile(result.profile);
   }, [snap.status, screen]);
 
@@ -363,7 +375,26 @@ export function App() {
     setHelp(false);
     setSaving(false);
   };
-  const buy = (id: UpgradeId) => setProfile((p) => buyUpgrade(p, id) ?? p);
+  // A change to the profile from the menu (an upgrade, a name, colours) may earn achievements.
+  const changeProfile = (next: Profile) => {
+    const out = award(next);
+    setProfile(out.profile);
+    for (const a of out.earned) say(`Achievement: ${a.name} (+${a.xp} XP)`);
+  };
+  const buy = (id: UpgradeId) => {
+    const next = buyUpgrade(profile, id);
+    if (next) changeProfile(next);
+  };
+  const rename = (name: string) => changeProfile({ ...profile, name });
+  const chooseScheme = (scheme: SchemeId) => changeProfile({ ...profile, scheme });
+  const [showProfile, setShowProfile] = useState(false);
+
+  // The colours follow the chosen scheme; the forest behind the menu is redrawn in them.
+  useEffect(() => {
+    const s = SCHEMES.find((x) => x.id === profile.scheme) ?? SCHEMES[0];
+    applyScheme(s.glow, s.mother);
+    if (view.current && screen === 'menu') view.current.setGame(game.current);
+  }, [profile.scheme]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -495,8 +526,11 @@ export function App() {
           profile={profile} onPlay={play} onBuy={buy}
           autosave={autosave} onContinue={() => autosave && loadSaved(autosave)}
           slots={slots} onLoadSlot={(n) => slots[n - 1] && loadSaved(slots[n - 1]!.round)} onDeleteSlot={deleteSlot}
-          onBackup={downloadBackup} onRestore={loadBackup}
+          onBackup={downloadBackup} onRestore={loadBackup} onOpenProfile={() => setShowProfile(true)}
         />
+      )}
+      {screen === 'menu' && showProfile && (
+        <ProfilePanel profile={profile} onRename={rename} onScheme={chooseScheme} onClose={() => setShowProfile(false)} />
       )}
 
       {saving && screen === 'game' && (
@@ -564,8 +598,14 @@ function XpSummary({ summary }: { summary: Summary }) {
         {lines.map((l) => (
           <li key={l.label}><span>{l.label}</span><b>+{l.xp} XP</b></li>
         ))}
-        <li className="total"><span>Total</span><b>+{totalXp(lines)} XP</b></li>
+        {summary.earned.map((a) => (
+          <li key={a.id} className="achieved"><span>Achievement: {a.name}</span><b>+{a.xp} XP</b></li>
+        ))}
+        <li className="total"><span>Total</span><b>+{totalXp(lines) + summary.earned.reduce((s, a) => s + a.xp, 0)} XP</b></li>
       </ul>
+      {summary.newRecords.length > 0 && (
+        <div className="records-new">{summary.newRecords.map((r) => <p key={r}>New record! {r}</p>)}</div>
+      )}
       <div className="xp-level">
         <span>Level {after.level}</span>
         <div className="bar"><div style={{ width: `${(after.xp / need) * 100}%` }} /></div>
